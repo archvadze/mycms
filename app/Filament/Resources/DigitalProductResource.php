@@ -132,6 +132,7 @@ class DigitalProductResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
                     ->label('Cover')
+                    ->disk('public')
                     ->height(50)
                     ->width(80),
                 Tables\Columns\TextColumn::make('name')

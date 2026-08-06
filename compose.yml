@@ -1,0 +1,61 @@
+name: mycms
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mycms-app
+    restart: unless-stopped
+
+    env_file:
+      - .env.production
+
+    working_dir: /var/www/html
+
+    volumes:
+      - ./:/var/www/html
+
+    ports:
+      - "127.0.0.1:9002:9000"
+
+    depends_on:
+      mycms-mariadb:
+        condition: service_healthy
+
+    networks:
+      - mycms-net
+
+    mem_limit: 256m
+
+  mycms-mariadb:
+    image: mariadb:11.8
+    container_name: mycms-mariadb
+    restart: unless-stopped
+
+    env_file:
+      - .env.production
+
+    volumes:
+      - /opt/mycms/mariadb:/var/lib/mysql
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "healthcheck.sh",
+          "--connect",
+          "--innodb_initialized"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - mycms-net
+
+    mem_limit: 256m
+
+networks:
+  mycms-net:
+    name: mycms-net
