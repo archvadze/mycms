@@ -109,8 +109,18 @@ class ViewEmailMessage extends ViewRecord
             $configHasKey = is_string(config('resend.api_key'))
                 && config('resend.api_key') !== '';
 
-            $serviceHasKey = is_string(config('services.resend.key'))
-                && config('services.resend.key') !== '';
+            $envHasKey = is_string(getenv('RESEND_API_KEY'))
+                && getenv('RESEND_API_KEY') !== '';
+
+            $cachedConfigPath = app()->getCachedConfigPath();
+
+            $cachedConfigHasKey = false;
+
+            if (is_file($cachedConfigPath)) {
+                $cached = require $cachedConfigPath;
+
+                $cachedConfigHasKey = ! empty($cached['resend']['api_key']);
+            }
 
             \Log::error('Inbox reply failed', [
                 'email_message_id' => $this->record->id,
@@ -118,15 +128,18 @@ class ViewEmailMessage extends ViewRecord
                 'exception' => get_class($e),
                 'error' => $e->getMessage(),
                 'resend_config_key_present' => $configHasKey,
-                'services_resend_key_present' => $serviceHasKey,
+                'process_env_key_present' => $envHasKey,
+                'cached_config_key_present' => $cachedConfigHasKey,
+                'cached_config_path' => $cachedConfigPath,
             ]);
 
             Notification::make()
                 ->title('Reply could not be sent')
                 ->body(
                     $e->getMessage()
-                        . ' | resend.config=' . ($configHasKey ? 'yes' : 'no')
-                        . ' | services.resend=' . ($serviceHasKey ? 'yes' : 'no')
+                        . ' | config=' . ($configHasKey ? 'yes' : 'no')
+                        . ' | env=' . ($envHasKey ? 'yes' : 'no')
+                        . ' | cache=' . ($cachedConfigHasKey ? 'yes' : 'no')
                 )
                 ->danger()
                 ->send();
