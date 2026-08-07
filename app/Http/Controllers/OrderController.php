@@ -53,11 +53,11 @@ class OrderController extends Controller
 
     public function success($orderId)
     {
-        $order = \App\Models\Order::where('id', $orderId)
+          $order = \App\Models\Order::where('id', $orderId)
             ->whereHas('client', function ($query) {
-               $query->where('user_id', auth()->id());
+          $query->where('user_id', auth()->id());
             })
-            ->findOrFail();
+            ->firstOrFail();
 
          session()->forget('order_success_id');
 
