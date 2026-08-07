@@ -106,16 +106,28 @@ class ViewEmailMessage extends ViewRecord
                 ->success()
                 ->send();
         } catch (Throwable $e) {
+            $configHasKey = is_string(config('resend.api_key'))
+                && config('resend.api_key') !== '';
+
+            $serviceHasKey = is_string(config('services.resend.key'))
+                && config('services.resend.key') !== '';
+
             \Log::error('Inbox reply failed', [
                 'email_message_id' => $this->record->id,
                 'thread_id' => $this->record->email_thread_id,
                 'exception' => get_class($e),
                 'error' => $e->getMessage(),
+                'resend_config_key_present' => $configHasKey,
+                'services_resend_key_present' => $serviceHasKey,
             ]);
 
             Notification::make()
                 ->title('Reply could not be sent')
-                ->body($e->getMessage())
+                ->body(
+                    $e->getMessage()
+                        . ' | resend.config=' . ($configHasKey ? 'yes' : 'no')
+                        . ' | services.resend=' . ($serviceHasKey ? 'yes' : 'no')
+                )
                 ->danger()
                 ->send();
         }
