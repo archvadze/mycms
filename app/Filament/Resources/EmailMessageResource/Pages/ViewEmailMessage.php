@@ -35,13 +35,13 @@ class ViewEmailMessage extends ViewRecord
                 ->form([
                     Forms\Components\TextInput::make('to')
                         ->label('To')
-                        ->default(fn (): string => $this->record->from_email)
+                        ->default(fn(): string => $this->record->from_email)
                         ->disabled(),
 
                     Forms\Components\TextInput::make('subject')
                         ->label('Subject')
                         ->default(
-                            fn (): string => $this->replySubject(
+                            fn(): string => $this->replySubject(
                                 $this->record->subject
                             )
                         )
@@ -106,11 +106,16 @@ class ViewEmailMessage extends ViewRecord
                 ->success()
                 ->send();
         } catch (Throwable $e) {
-            report($e);
+            \Log::error('Inbox reply failed', [
+                'email_message_id' => $this->record->id,
+                'thread_id' => $this->record->email_thread_id,
+                'exception' => get_class($e),
+                'error' => $e->getMessage(),
+            ]);
 
             Notification::make()
                 ->title('Reply could not be sent')
-                ->body('Please try again.')
+                ->body($e->getMessage())
                 ->danger()
                 ->send();
         }
