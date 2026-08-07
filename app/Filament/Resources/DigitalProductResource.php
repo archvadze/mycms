@@ -106,7 +106,8 @@ class DigitalProductResource extends Resource
                         ->prefix('$'),
                     Forms\Components\TextInput::make('sale_price')
                         ->numeric()
-                        ->prefix('$'),
+                        ->prefix('$')
+                        ->lt('price'),
                     Forms\Components\TextInput::make('demo_url')
                         ->label('Demo URL')
                         ->url()
