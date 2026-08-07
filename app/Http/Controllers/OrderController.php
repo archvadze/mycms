@@ -53,11 +53,14 @@ class OrderController extends Controller
 
     public function success($orderId)
     {
-        $order = \App\Models\Order::findOrFail($orderId);
-        if (auth()->check() && $order->user_id && $order->user_id !== auth()->id()) {
-            abort(403, 'Access denied.');
-        }
-        session()->forget('order_success_id');
-        return view('order.success', compact('order'));
+        $order = \App\Models\Order::where('id', $orderId)
+            ->whereHas('client', function ($query) {
+               $query->where('user_id', auth()->id());
+            })
+            ->findOrFail();
+
+         session()->forget('order_success_id');
+
+         return view('order.success', compact('order'));
     }
 }

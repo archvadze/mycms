@@ -41,7 +41,13 @@ public function index()
         ->latest()
         ->get();
 
-    $orders = $client->orders()->latest()->take(5)->get();
+    $orders = $client->orders()
+        ->with('project')
+        ->latest()
+        ->take(5)
+        ->get();
+
+    $totalOrders = $client->orders()->count();
 
     $recentMessages = ProjectMessage::whereIn('project_id', $projects->pluck('id'))
         ->where('sender_id', '!=', Auth::id())
@@ -54,7 +60,7 @@ public function index()
         'total_projects'     => $projects->count(),
         'active_projects'    => $projects->where('status', 'in_progress')->count(),
         'completed_projects' => $projects->where('status', 'completed')->count(),
-        'total_orders'       => $orders->count(),
+        'total_orders' => $totalOrders,
     ];
 
     $purchases = \App\Models\Purchase::where('user_id', auth()->id())

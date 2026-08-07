@@ -56,7 +56,7 @@ asort($order);
 
 @foreach(array_keys($order) as $section)
     @if($section === "portfolio")
-@if(($modules["module_portfolio"] ?? true) && $modules["module_portfolio"] !== "0" && ($homePage->show_portfolio ?? true))
+@if(($modules['module_portfolio'] ?? '1') !== '0' && ($homePage->show_portfolio ?? true))
 <!-- Portfolio Section -->
 <section class="py-24 bg-gray-50">
     <div class="max-w-7xl mx-auto px-4">
@@ -143,7 +143,7 @@ asort($order);
 @endif
 
     @elseif($section === "services")
-@if(($modules["module_services"] ?? true) && $modules["module_services"] !== "0" && ($homePage->show_services ?? true))
+@if(($modules['module_services'] ?? '1') !== '0' && ($homePage->show_services ?? true))
 <!-- Services Section -->
 <section class="py-24 bg-white">
     <div class="max-w-7xl mx-auto px-4">
@@ -246,7 +246,7 @@ asort($order);
 </section>
 @endif
     @elseif($section === "testimonials")
-@if(($modules["module_testimonials"] ?? true) && $modules["module_testimonials"] !== "0" && ($homePage->show_testimonials ?? true))
+@if(($modules['module_testimonials'] ?? '1') !== '0' && ($homePage->show_testimonials ?? true))
 <!-- Testimonials -->
 <section class="py-24 bg-white">
     <div class="max-w-7xl mx-auto px-4">
@@ -296,7 +296,7 @@ asort($order);
 @endif
 
     @elseif($section === "blog")
-@if(($modules["module_blog"] ?? true) && $modules["module_blog"] !== "0" && ($homePage->show_blog ?? false))
+@if(($modules['module_blog'] ?? '1') !== '0' && ($homePage->show_blog ?? false))
 <!-- Blog Section -->
 <section class="py-24 bg-gray-50">
     <div class="max-w-7xl mx-auto px-4">

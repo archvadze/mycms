@@ -134,20 +134,47 @@
           <div class="p-6">
             @if($orders->count() > 0)
               <div class="space-y-3">
-                @foreach($orders as $order)
-                <div class="flex items-start justify-between gap-2">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium text-gray-900 truncate">{{ $order->domain }}</p>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ $order->created_at->format('M j, Y') }}</p>
+               @foreach($orders as $order)
+<div class="border border-gray-100 rounded-lg p-3">
+    <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">
+                {{ $order->domain }}
+            </p>
+
+            <p class="text-xs text-gray-400 mt-0.5">
+                {{ $order->created_at->format('M j, Y') }}
+            </p>
+        </div>
+
+        <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+            @if($order->status === 'accepted') bg-green-100 text-green-800
+            @elseif($order->status === 'contacted') bg-blue-100 text-blue-800
+            @elseif($order->status === 'rejected') bg-red-100 text-red-800
+            @else bg-yellow-100 text-yellow-800 @endif">
+            {{ ucfirst($order->status) }}
+        </span>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mt-3">
+        <a href="{{ route('order.success', $order->id) }}"
+           class="text-xs font-medium text-primary hover:underline">
+            View Order
+        </a>
+
+        @if($order->payment_status !== 'paid')
+            <a href="{{ route('payment.create', $order->id) }}"
+               class="text-xs font-medium text-orange-600 hover:underline">
+                Pay with PayPal
+            </a>
+        @elseif($order->project)
+            <a href="{{ route('client-dashboard.project', $order->project->id) }}"
+               class="text-xs font-medium text-green-700 hover:underline">
+                View Project
+            </a>
+                       @endif
+                    </div>
                   </div>
-                  <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                    @if($order->status === 'accepted') bg-green-100 text-green-800
-                    @elseif($order->status === 'contacted') bg-blue-100 text-blue-800
-                    @elseif($order->status === 'rejected') bg-red-100 text-red-800
-                    @else bg-yellow-100 text-yellow-800 @endif">
-                    {{ ucfirst($order->status) }}
-                  </span>
-                </div>
                 @endforeach
               </div>
             @else

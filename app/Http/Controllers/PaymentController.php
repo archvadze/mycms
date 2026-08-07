@@ -9,7 +9,11 @@ class PaymentController extends Controller
 {
     public function createPayment(Request $request, $orderId)
     {
-        $order = Order::with('services', 'features')->findOrFail($orderId);
+        $order = Order::with('services', 'features')
+             ->whereHas('client', function ($query) {
+           $query->where('user_id', auth()->id());
+             })
+          ->findOrFail($orderId);
 
         $provider = new PayPalClient;
         $provider->setApiCredentials(config('paypal'));
@@ -52,36 +56,46 @@ class PaymentController extends Controller
         return back()->with('error', 'Payment failed: ' . json_encode($response));
     }
 
-    public function paymentSuccess(Request $request, $orderId)
-    {
-        $order = Order::findOrFail($orderId);
+public function paymentSuccess(Request $request, $orderId)
+{
+    $order = Order::where('id', $orderId)
+        ->whereHas('client', function ($query) {
+            $query->where('user_id', auth()->id());
+        })
+        ->firstOrFail();
 
-        $provider = new PayPalClient;
-        $provider->setApiCredentials(config('paypal'));
-        $token = @$provider->getAccessToken();
-        $provider->setAccessToken($token);
+    $provider = new PayPalClient;
+    $provider->setApiCredentials(config('paypal'));
+    $token = @$provider->getAccessToken();
+    $provider->setAccessToken($token);
 
-        $response = $provider->capturePaymentOrder($request->token);
+    $response = $provider->capturePaymentOrder($request->token);
 
-        if (isset($response['status']) && $response['status'] === 'COMPLETED') {
-            $order->update([
-                'status'         => 'accepted',
-                'payment_status' => 'paid',
-                'payment_id'     => $response['id'],
-                'paid_at'        => now(),
-            ]);
+    if (isset($response['status']) && $response['status'] === 'COMPLETED') {
+        $order->update([
+            'status'         => 'accepted',
+            'payment_status' => 'paid',
+            'payment_id'     => $response['id'],
+            'paid_at'        => now(),
+        ]);
 
-            return redirect()->route('order.success', $order->id)
-                ->with('success', 'Payment completed successfully!');
-        }
-
-        return redirect()->route('payment.cancel', $orderId)
-            ->with('error', 'Payment could not be completed.');
+        return redirect()->route('order.success', $order->id)
+            ->with('success', 'Payment completed successfully!');
     }
 
-    public function paymentCancel($orderId)
-    {
-        return redirect()->route('order.success', $orderId)
-            ->with('warning', 'Payment was cancelled. You can try again later.');
-    }
+    return redirect()->route('payment.cancel', $orderId)
+        ->with('error', 'Payment could not be completed.');
+}
+
+public function paymentCancel($orderId)
+{
+    Order::where('id', $orderId)
+        ->whereHas('client', function ($query) {
+            $query->where('user_id', auth()->id());
+        })
+        ->firstOrFail();
+
+    return redirect()->route('order.success', $orderId)
+        ->with('warning', 'Payment was cancelled. You can try again later.');
+}
 }
