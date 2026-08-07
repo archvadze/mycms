@@ -75,13 +75,21 @@ class ViewEmailMessage extends ViewRecord
                 'to' => [$to],
                 'subject' => $subject,
                 'text' => $body,
+                'headers' => [
+                    'In-Reply-To' => $this->record->message_id,
+                    'References' => $this->record->message_id,
+                ],
             ]);
+
+            $sentEmail = $resend->emails->get($sent->id);
+
+            $sentMessageId = $sentEmail->message_id ?? $sent->id;
 
             EmailMessage::create([
                 'email_thread_id' => $this->record->email_thread_id,
                 'direction' => 'outbound',
                 'source' => 'resend',
-                'message_id' => $sent->id,
+                'message_id' => $sentMessageId,
                 'in_reply_to' => $this->record->message_id,
                 'from_name' => 'Archvadze',
                 'from_email' => 'admin@archvadze.com',
