@@ -5532,16 +5532,16 @@
         },
         {
             "name": "resend/resend-laravel",
-            "version": "v1.3.2",
+            "version": "v1.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/resend/resend-laravel.git",
-                "reference": "49773f31e9e7753f596f8459b6a8200525ffde0c"
+                "reference": "6dd5f5ec607404068c5af067fd7f6ba4b659262b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/resend/resend-laravel/zipball/49773f31e9e7753f596f8459b6a8200525ffde0c",
-                "reference": "49773f31e9e7753f596f8459b6a8200525ffde0c",
+                "url": "https://api.github.com/repos/resend/resend-laravel/zipball/6dd5f5ec607404068c5af067fd7f6ba4b659262b",
+                "reference": "6dd5f5ec607404068c5af067fd7f6ba4b659262b",
                 "shasum": ""
             },
             "require": {
@@ -5595,27 +5595,29 @@
             ],
             "support": {
                 "issues": "https://github.com/resend/resend-laravel/issues",
-                "source": "https://github.com/resend/resend-laravel/tree/v1.3.2"
+                "source": "https://github.com/resend/resend-laravel/tree/v1.4.0"
             },
-            "time": "2026-03-27T02:11:50+00:00"
+            "time": "2026-05-06T17:08:44+00:00"
         },
         {
             "name": "resend/resend-php",
-            "version": "v1.2.0",
+            "version": "v1.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/resend/resend-php.git",
-                "reference": "038b8100c072f451b09efaa5c9c93b7298c33688"
+                "reference": "9516207c4f6ff210c64b193e31074e925dd6193a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/resend/resend-php/zipball/038b8100c072f451b09efaa5c9c93b7298c33688",
-                "reference": "038b8100c072f451b09efaa5c9c93b7298c33688",
+                "url": "https://api.github.com/repos/resend/resend-php/zipball/9516207c4f6ff210c64b193e31074e925dd6193a",
+                "reference": "9516207c4f6ff210c64b193e31074e925dd6193a",
                 "shasum": ""
             },
             "require": {
-                "guzzlehttp/guzzle": "^7.5",
-                "php": "^8.1.0"
+                "guzzlehttp/guzzle": "^7.8.2 || ^8.0",
+                "guzzlehttp/psr7": "^2.6.3 || ^3.0",
+                "php": "^8.1.0",
+                "psr/http-client": "^1.0"
             },
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.13",
@@ -5652,9 +5654,9 @@
             ],
             "support": {
                 "issues": "https://github.com/resend/resend-php/issues",
-                "source": "https://github.com/resend/resend-php/tree/v1.2.0"
+                "source": "https://github.com/resend/resend-php/tree/v1.7.0"
             },
-            "time": "2026-04-02T03:54:08+00:00"
+            "time": "2026-07-27T21:14:02+00:00"
         },
         {
             "name": "ryangjchandler/blade-capture-directive",
@@ -11828,5 +11830,5 @@
         "php": "^8.2"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
