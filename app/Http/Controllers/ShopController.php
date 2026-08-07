@@ -86,10 +86,20 @@ public function download(Purchase $purchase)
 
     $purchase->decrement('download_limit');
 
-    return response()->download(
-        $filePath,
-        $purchase->version->product->name . '_v' . $purchase->version->version_number . '.zip'
-    );
+    $extension = pathinfo($purchase->version->file_path, PATHINFO_EXTENSION);
+
+$safeProductName = preg_replace(
+    '/[^A-Za-z0-9_-]+/',
+    '_',
+    $purchase->version->product->name
+);
+
+$downloadName = $safeProductName
+    . '_v'
+    . $purchase->version->version_number
+    . ($extension ? '.' . $extension : '');
+
+return response()->download($filePath, $downloadName);
 }
 public function checkout(string $slug)
 {
