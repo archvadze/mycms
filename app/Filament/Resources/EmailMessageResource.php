@@ -5,9 +5,10 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\EmailMessageResource\Pages;
 use App\Services\Mail\AttachmentPolicy;
 use App\Models\EmailMessage;
+use App\Models\EmailThread;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Actions;
+use Filament\Notifications\Notification;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -15,6 +16,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+
+
 
 class EmailMessageResource extends Resource
 {
@@ -312,27 +315,70 @@ class EmailMessageResource extends Resource
                     ->label('From')
                     ->searchable()
                     ->sortable()
+                    ->limit(28)
+                    ->tooltip(
+                        fn(EmailMessage $record): string =>
+                        $record->from_email
+                    )
                     ->weight(
                         fn(EmailMessage $record): string =>
                         $record->is_read ? 'regular' : 'bold'
                     ),
 
                 Tables\Columns\TextColumn::make('subject')
+                    ->label('Subject')
                     ->searchable()
-                    ->limit(60)
+                    ->limit(42)
+                    ->tooltip(
+                        fn(EmailMessage $record): string =>
+                        $record->subject ?? ''
+                    )
                     ->weight(
                         fn(EmailMessage $record): string =>
                         $record->is_read ? 'regular' : 'bold'
                     ),
 
-                Tables\Columns\TextColumn::make('text_body')
-                    ->label('Preview')
-                    ->limit(70)
-                    ->wrap(),
+                Tables\Columns\TextColumn::make('thread.status')
+                    ->label('')
+                    ->badge()
+                    ->formatStateUsing(
+                        fn(?string $state): string =>
+                        $state === 'closed'
+                            ? 'Open Conv'
+                            : 'Close Conv'
+                    )
+                    ->color(
+                        fn(?string $state): string =>
+                        $state === 'closed'
+                            ? 'warning'
+                            : 'success'
+                    )
+                    ->action(function (EmailMessage $record): void {
+                        if (! $record->thread) {
+                            return;
+                        }
+
+                        $newStatus = $record->thread->status === 'closed'
+                            ? 'open'
+                            : 'closed';
+
+                        $record->thread->update([
+                            'status' => $newStatus,
+                        ]);
+
+                        Notification::make()
+                            ->title(
+                                $newStatus === 'closed'
+                                    ? 'Conversation closed'
+                                    : 'Conversation reopened'
+                            )
+                            ->success()
+                            ->send();
+                    }),
 
                 Tables\Columns\TextColumn::make('received_at')
                     ->label('Received')
-                    ->dateTime('M j, Y H:i')
+                    ->dateTime('M j, H:i')
                     ->sortable()
                     ->since()
                     ->tooltip(
@@ -340,12 +386,41 @@ class EmailMessageResource extends Resource
                         $record->received_at?->format('Y-m-d H:i:s')
                     ),
             ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('conversation_status')
+                    ->label('Status')
+                    ->options(function (): array {
+                        $counts = EmailThread::query()
+                            ->selectRaw('status, COUNT(*) as total')
+                            ->groupBy('status')
+                            ->pluck('total', 'status');
+
+                        return [
+                            'open' => 'Open (' . ($counts['open'] ?? 0) . ')',
+                            'closed' => 'Closed (' . ($counts['closed'] ?? 0) . ')',
+                        ];
+                    })
+                    ->default('open')
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (! $value) {
+                            return $query;
+                        }
+
+                        return $query->whereHas(
+                            'thread',
+                            fn(Builder $threadQuery) =>
+                            $threadQuery->where('status', $value)
+                        );
+                    }),
+            ])
             ->defaultSort('received_at', 'desc')
-            ->actions([
-                Actions\ViewAction::make()
-                    ->label('Open')
-                    ->icon('heroicon-o-envelope-open'),
-            ]);
+            ->recordUrl(
+                fn(EmailMessage $record): string =>
+                static::getUrl('view', ['record' => $record])
+            )
+            ->actions([]);
     }
 
     public static function getPages(): array

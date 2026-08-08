@@ -33,7 +33,10 @@ class ThrottleResendWebhookTest extends TestCase
     public function test_other_routes_are_not_affected_by_resend_rate_limit(): void
     {
         for ($i = 1; $i <= 65; $i++) {
-            $this->get('/');
+            RateLimiter::hit(
+                'resend-webhook:127.0.0.1',
+                60
+            );
         }
 
         $response = $this->get('/');
