@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\EmailMessageResource\Pages;
+use App\Services\Mail\AttachmentPolicy;
 use App\Models\EmailMessage;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -120,13 +121,40 @@ class EmailMessageResource extends Resource
                     RepeatableEntry::make('attachment_items')
                         ->label('')
                         ->state(function (EmailMessage $record): array {
-                            return collect($record->attachments ?? [])
-                                ->map(function (array $attachment) use ($record): array {
+                            /** @var AttachmentPolicy $attachmentPolicy */
+                            $attachmentPolicy = app(AttachmentPolicy::class);
+
+                            $attachments = $record->attachments ?? [];
+
+                            $batchPolicy = $attachmentPolicy
+                                ->evaluateBatchLimits($attachments);
+
+                            return collect($attachments)
+                                ->map(function (array $attachment) use (
+                                    $record,
+                                    $attachmentPolicy,
+                                    $batchPolicy
+                                ): array {
+                                    $filePolicy = $attachmentPolicy
+                                        ->evaluateAttachment($attachment);
+
+                                    $allowed = $batchPolicy['allowed']
+                                        && $filePolicy['allowed'];
+
+                                    $blockedReason = ! $batchPolicy['allowed']
+                                        ? $batchPolicy['reason']
+                                        : $filePolicy['reason'];
+
                                     return [
                                         'filename' => $attachment['filename'] ?? 'attachment',
                                         'content_type' => $attachment['content_type'] ?? null,
                                         'size' => $attachment['size'] ?? null,
-                                        'download_url' => ! empty($attachment['id'])
+                                        'allowed' => $allowed,
+                                        'blocked_reason' => $blockedReason,
+
+                                        'download_url' =>
+                                        $allowed
+                                            && ! empty($attachment['id'])
                                             ? route(
                                                 'email-messages.attachments.download',
                                                 [
@@ -147,7 +175,8 @@ class EmailMessageResource extends Resource
                                 ->label('Download')
                                 ->formatStateUsing(fn(): string => 'Download file')
                                 ->url(fn($state): ?string => $state)
-                                ->openUrlInNewTab(),
+                                ->openUrlInNewTab()
+                                ->visible(fn($state): bool => filled($state)),
 
                             TextEntry::make('content_type')
                                 ->label('Type'),
@@ -160,6 +189,20 @@ class EmailMessageResource extends Resource
                                         ? number_format(((int) $state) / 1024, 1) . ' KB'
                                         : '—'
                                 ),
+
+                            TextEntry::make('blocked_reason')
+                                ->label('Security')
+                                ->formatStateUsing(
+                                    fn($state): string => $state
+                                        ? 'Blocked: ' . $state
+                                        : 'Allowed'
+                                )
+                                ->badge()
+                                ->color(
+                                    fn($state): string =>
+                                    $state ? 'danger' : 'success'
+                                )
+                                ->columnSpanFull(),
                         ])
                         ->columns(4)
                         ->columnSpanFull(),

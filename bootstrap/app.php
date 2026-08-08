@@ -13,7 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class); 
-    
+        $middleware->append(\App\Http\Middleware\ThrottleResendWebhook::class);
+
         $middleware->alias([
             'client' => \App\Http\Middleware\CheckClientRole::class,
             'admin' => \App\Http\Middleware\CheckAdminRole::class,

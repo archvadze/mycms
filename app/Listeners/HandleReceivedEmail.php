@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Models\EmailMessage;
 use App\Models\EmailThread;
 use App\Services\MailSettings;
+use App\Services\Mail\AttachmentPolicy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Resend\Contracts\Client as ResendClient;
@@ -15,7 +16,8 @@ class HandleReceivedEmail
 {
     public function __construct(
         private ResendClient $resend,
-        private MailSettings $mailSettings
+        private MailSettings $mailSettings,
+        private AttachmentPolicy $attachmentPolicy
     ) {}
 
     public function handle(EmailReceived $event): void
@@ -106,7 +108,7 @@ class HandleReceivedEmail
                 'subject' => $subject,
                 'text_body' => $received->text ?? null,
                 'html_body' => $received->html ?? null,
-                'attachments' => $attachments,
+                'attachments' => $this->evaluateAttachments($attachments),
                 'metadata' => [
                     'resend_email_id' => $emailId,
                     'headers' => $headers,
@@ -124,6 +126,37 @@ class HandleReceivedEmail
     protected function retrieveReceivedEmail(string $emailId): object
     {
         return $this->resend->emails->receiving->get($emailId);
+    }
+
+    private function evaluateAttachments(array $attachments): array
+    {
+        $batchResult = $this->attachmentPolicy
+            ->evaluateBatchLimits($attachments);
+
+        if (! $batchResult['allowed']) {
+            return collect($attachments)
+                ->map(function (array $attachment) use ($batchResult): array {
+                    return [
+                        ...$attachment,
+                        'allowed' => false,
+                        'blocked_reason' => $batchResult['reason'],
+                    ];
+                })
+                ->all();
+        }
+
+        return collect($attachments)
+            ->map(function (array $attachment): array {
+                $result = $this->attachmentPolicy
+                    ->evaluateAttachment($attachment);
+
+                return [
+                    ...$attachment,
+                    'allowed' => $result['allowed'],
+                    'blocked_reason' => $result['reason'],
+                ];
+            })
+            ->all();
     }
 
     private function resolveThreadFromHeaders(array $headers): ?EmailThread

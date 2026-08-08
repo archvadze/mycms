@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Providers;
 
 use App\Models\SiteSetting;
@@ -60,7 +61,8 @@ class AppServiceProvider extends ServiceProvider
                 $pageSlug = $slugMap[$slug];
                 if (!$view->offsetExists('page') || is_null($view->offsetGet('page'))) {
                     $page = \Illuminate\Support\Facades\Cache::remember(
-                        'page.' . $pageSlug, 3600,
+                        'page.' . $pageSlug,
+                        3600,
                         fn() => Page::where('slug', $pageSlug)->first()
                     );
                     $view->with('page', $page);
@@ -82,7 +84,7 @@ class AppServiceProvider extends ServiceProvider
         SiteSetting::saved(fn() => Cache::forget('site.settings'));
         MenuItem::saved(fn() => Cache::forget('menu.items'));
         MenuItem::deleted(fn() => Cache::forget('menu.items'));
-        Page::saved(function($page) {
+        Page::saved(function ($page) {
             Cache::forget('page.' . $page->slug);
             if ($page->slug === 'home') {
                 Cache::forget('home.page');
@@ -127,5 +129,9 @@ class AppServiceProvider extends ServiceProvider
             $view->with('footerMenuItems', $menuItems->where('location', 'footer')->values());
             $view->with('bottomMenuItems', $menuItems->where('location', 'bottom')->values());
         });
+
+        
+
+         
     }
 }

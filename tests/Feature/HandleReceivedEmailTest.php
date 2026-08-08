@@ -6,6 +6,7 @@ use App\Listeners\HandleReceivedEmail;
 use App\Models\EmailMessage;
 use App\Models\EmailThread;
 use App\Services\MailSettings;
+use App\Services\Mail\AttachmentPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Resend\Contracts\Client as ResendClient;
 use Resend\Laravel\Events\EmailReceived;
@@ -19,15 +20,26 @@ class HandleReceivedEmailTest extends TestCase
     {
         $client = $this->createMock(ResendClient::class);
         $mailSettings = app(MailSettings::class);
+        $attachmentPolicy = app(AttachmentPolicy::class);
 
-        return new class($client, $mailSettings, $received) extends HandleReceivedEmail
+        return new class(
+            $client,
+            $mailSettings,
+            $attachmentPolicy,
+            $received
+        ) extends HandleReceivedEmail
         {
             public function __construct(
                 ResendClient $resend,
                 MailSettings $mailSettings,
+                AttachmentPolicy $attachmentPolicy,
                 private object $fakeReceived
             ) {
-                parent::__construct($resend, $mailSettings);
+                parent::__construct(
+                    $resend,
+                    $mailSettings,
+                    $attachmentPolicy
+                );
             }
 
             protected function retrieveReceivedEmail(string $emailId): object
@@ -36,6 +48,7 @@ class HandleReceivedEmailTest extends TestCase
             }
         };
     }
+    
     public function test_received_email_creates_thread_and_message(): void
     {
         $received = (object) [
