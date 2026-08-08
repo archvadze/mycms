@@ -18,29 +18,20 @@ class EmailAttachmentController extends Controller
                 'Admin',
                 'Support',
             ]),
-            403,
-            'Not authorized to download email attachments.'
+            403
         );
 
         $attachment = collect($message->attachments ?? [])
             ->firstWhere('id', $attachmentId);
 
-        abort_unless(
-            $attachment,
-            404,
-            'Attachment metadata not found.'
-        );
+        abort_unless($attachment, 404);
 
         $resendEmailId = data_get(
             $message->metadata,
             'resend_email_id'
         );
 
-        abort_unless(
-            $resendEmailId,
-            404,
-            'Resend email ID not found.'
-        );
+        abort_unless($resendEmailId, 404);
 
         $remoteAttachment = $resend
             ->emails
@@ -51,14 +42,10 @@ class EmailAttachmentController extends Controller
                 $attachmentId
             );
 
-        abort_unless(
-            ! empty($remoteAttachment->download_url),
-            404,
-            'Resend download URL not found.'
-        );
+        $downloadUrl = (string) $remoteAttachment->download_url;
 
-        return redirect()->away(
-            $remoteAttachment->download_url
-        );
+        abort_if($downloadUrl === '', 404);
+
+        return redirect()->away($downloadUrl);
     }
 }
