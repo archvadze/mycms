@@ -81,9 +81,20 @@ class ViewEmailMessage extends ViewRecord
                 ],
             ]);
 
-            $sentEmail = $resend->emails->get($sent->id);
+            $sentMessageId = null;
 
-            $sentMessageId = $sentEmail->message_id ?? $sent->id;
+            for ($attempt = 1; $attempt <= 5; $attempt++) {
+                $sentEmail = $resend->emails->get($sent->id);
+
+                if (! empty($sentEmail->message_id)) {
+                    $sentMessageId = $sentEmail->message_id;
+                    break;
+                }
+
+                usleep(300_000);
+            }
+
+            $sentMessageId ??= $sent->id;
 
             EmailMessage::create([
                 'email_thread_id' => $this->record->email_thread_id,
