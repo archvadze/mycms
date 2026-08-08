@@ -4,6 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\EmailMessageResource\Pages;
 use App\Models\EmailMessage;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
@@ -17,8 +19,7 @@ class EmailMessageResource extends Resource
 {
     protected static ?string $model = EmailMessage::class;
 
-    protected static \BackedEnum|string|null $navigationIcon =
-    'heroicon-o-envelope';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-envelope';
 
     protected static ?string $navigationLabel = 'Inbox';
 
@@ -47,6 +48,18 @@ class EmailMessageResource extends Resource
         $count = static::getModel()::query()
             ->where('direction', 'inbound')
             ->where('is_read', false)
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereNull('email_thread_id')
+                    ->orWhereIn('id', function ($subQuery): void {
+                        $subQuery
+                            ->selectRaw('MAX(id)')
+                            ->from('email_messages')
+                            ->where('direction', 'inbound')
+                            ->whereNotNull('email_thread_id')
+                            ->groupBy('email_thread_id');
+                    });
+            })
             ->count();
 
         return $count > 0 ? (string) $count : null;
@@ -100,6 +113,71 @@ class EmailMessageResource extends Resource
                         ->columnSpanFull(),
                 ])
                 ->columns(1),
+
+            Section::make('Conversation (Full email thread in chronological order)')
+                ->schema([
+                    RepeatableEntry::make('conversation')
+                        ->label('')
+                        ->state(function (EmailMessage $record): array {
+                            if (! $record->thread) {
+                                return [];
+                            }
+
+                            return $record->thread
+                                ->messages()
+                                ->orderByRaw(
+                                    'COALESCE(received_at, sent_at, created_at) ASC'
+                                )
+                                ->get()
+                                ->map(function (EmailMessage $message): array {
+                                    $timestamp = $message->received_at
+                                        ?? $message->sent_at
+                                        ?? $message->created_at;
+
+                                    return [
+                                        'direction' => $message->direction,
+                                        'body' => $message->text_body
+                                            ?: strip_tags($message->html_body ?? ''),
+                                        'timestamp' => $timestamp?->format('M j, Y H:i'),
+                                        'attachment_count' => count($message->attachments ?? []),
+                                    ];
+                                })
+                                ->all();
+                        })
+                        ->schema([
+                            TextEntry::make('direction')
+                                ->label('Direction')
+                                ->formatStateUsing(
+                                    fn(string $state): string =>
+                                    $state === 'outbound' ? 'Sent' : 'Received'
+                                )
+                                ->inlineLabel(),
+
+                            TextEntry::make('timestamp')
+                                ->label('Date')
+                                ->inlineLabel(),
+
+                            TextEntry::make('body')
+                                ->label('Message')
+                                ->columnSpanFull(),
+
+                            TextEntry::make('attachment_count')
+                                ->label('Attachments')
+                                ->formatStateUsing(
+                                    fn($state): string =>
+                                    $state === 1
+                                        ? '1 attachment'
+                                        : "{$state} attachments"
+                                )
+                                ->visible(fn($state): bool => (int) $state > 0)
+                                ->columnSpanFull(),
+                        ])
+                        ->columns(2)
+                        ->columnSpanFull(),
+                ])
+                ->columns(1)
+                ->columnSpanFull()
+                ->collapsed(),
         ]);
     }
 
@@ -109,6 +187,18 @@ class EmailMessageResource extends Resource
             ->modifyQueryUsing(
                 fn(Builder $query) => $query
                     ->where('direction', 'inbound')
+                    ->where(function (Builder $query): void {
+                        $query
+                            ->whereNull('email_thread_id')
+                            ->orWhereIn('id', function ($subQuery): void {
+                                $subQuery
+                                    ->selectRaw('MAX(id)')
+                                    ->from('email_messages')
+                                    ->where('direction', 'inbound')
+                                    ->whereNotNull('email_thread_id')
+                                    ->groupBy('email_thread_id');
+                            });
+                    })
             )
             ->columns([
                 Tables\Columns\IconColumn::make('is_read')

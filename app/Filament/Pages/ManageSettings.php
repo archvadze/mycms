@@ -1,7 +1,9 @@
 <?php
+
 namespace App\Filament\Pages;
 
 use App\Models\SiteSetting;
+use App\Services\MailSettings;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -23,7 +25,10 @@ class ManageSettings extends Page implements HasForms
     protected static ?string $navigationLabel = 'Settings';
     protected static ?string $title = 'Site Settings';
     protected static ?int $navigationSort = 6;
-    public static function getNavigationGroup(): ?string { return 'System'; }
+    public static function getNavigationGroup(): ?string
+    {
+        return 'System';
+    }
 
     public function getView(): string
     {
@@ -78,6 +83,47 @@ class ManageSettings extends Page implements HasForms
                             ->columnSpanFull()
                             ->helperText('Google Search Console, Bing Webmaster, Facebook Domain Verification და სხვა კოდები'),
                     ])->columns(2),
+
+                Section::make('Mail')
+                    ->description('Configure the mailbox identity used for sending and receiving email.')
+                    ->schema([
+                        Forms\Components\Toggle::make('mail_enabled')
+                            ->label('Mail Enabled')
+                            ->default(true)
+                            ->onColor('success'),
+
+                        Forms\Components\TextInput::make('mail_sender_name')
+                            ->label('Sender Name')
+                            ->placeholder(config('mail.from.name') ?: config('app.name'))
+                            ->maxLength(255),
+
+                        Forms\Components\TextInput::make('mail_sender_email')
+                            ->label('Sender Email')
+                            ->placeholder(config('mail.from.address'))
+                            ->email()
+                            ->maxLength(255)
+                            ->helperText('This address must belong to a verified sending domain.'),
+
+                        Forms\Components\TextInput::make('mail_inbox_email')
+                            ->label('Inbox Email')
+                            ->placeholder(config('agency.admin_email'))
+                            ->email()
+                            ->maxLength(255)
+                            ->helperText('Incoming messages are expected to be delivered to this mailbox.'),
+
+                        Forms\Components\TextInput::make('mail_reply_to')
+                            ->label('Reply-To')
+                            ->email()
+                            ->maxLength(255)
+                            ->helperText('Optional. Leave empty to use the sender email.'),
+
+                        Forms\Components\TextInput::make('mail_admin_notification_email')
+                            ->label('Admin Notification Email')
+                            ->placeholder(config('agency.admin_email'))
+                            ->email()
+                            ->maxLength(255),
+                    ])
+                    ->columns(2),
 
                 Section::make('Contact & Location')
                     ->schema([
@@ -144,11 +190,11 @@ class ManageSettings extends Page implements HasForms
                             ->label('Testimonials Menu Label')
                             ->placeholder('Testimonials')
                             ->maxLength(50),
-                       Forms\Components\Toggle::make('module_shop')
+                        Forms\Components\Toggle::make('module_shop')
                             ->label('Shop')
                             ->default(true)
                             ->onColor('success'),
-                       Forms\Components\TextInput::make('module_shop_label')
+                        Forms\Components\TextInput::make('module_shop_label')
                             ->label('Shop Menu Label')
                             ->placeholder('Shop')
                             ->maxLength(50),
@@ -199,6 +245,8 @@ class ManageSettings extends Page implements HasForms
 
         // Menu cache გავასუფთავოთ
         \Illuminate\Support\Facades\Cache::forget('menu.items');
+
+        app(MailSettings::class)->clearCache();
 
         Notification::make()->title('Settings saved!')->success()->send();
     }

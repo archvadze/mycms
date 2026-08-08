@@ -4,6 +4,7 @@ namespace App\Filament\Resources\EmailMessageResource\Pages;
 
 use App\Filament\Resources\EmailMessageResource;
 use App\Models\EmailMessage;
+use App\Services\MailSettings;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -19,13 +20,25 @@ class ViewEmailMessage extends ViewRecord
     {
         parent::mount($record);
 
+        if ($this->record->thread) {
+            $this->record->thread
+                ->messages()
+                ->where('direction', 'inbound')
+                ->where('is_read', false)
+                ->update([
+                    'is_read' => true,
+                ]);
+
+            return;
+        }
+
         if (! $this->record->is_read) {
             $this->record->update([
                 'is_read' => true,
             ]);
         }
     }
-
+    
     protected function getHeaderActions(): array
     {
         return [
@@ -35,14 +48,16 @@ class ViewEmailMessage extends ViewRecord
                 ->form([
                     Forms\Components\TextInput::make('to')
                         ->label('To')
-                        ->default(fn(): string => $this->record->from_email)
+                        ->default(
+                            fn(): string => $this->getReplyTarget()->from_email
+                        )
                         ->disabled(),
 
                     Forms\Components\TextInput::make('subject')
                         ->label('Subject')
                         ->default(
                             fn(): string => $this->replySubject(
-                                $this->record->subject
+                                $this->getReplyTarget()->subject
                             )
                         )
                         ->disabled(),
@@ -61,34 +76,69 @@ class ViewEmailMessage extends ViewRecord
         ];
     }
 
+    private function getReplyTarget(): EmailMessage
+    {
+        return $this->record->thread
+            ?->messages()
+            ->where('direction', 'inbound')
+            ->orderByDesc('received_at')
+            ->orderByDesc('id')
+            ->first()
+            ?? $this->record;
+    }
+
     private function sendReply(string $body): void
     {
-        $to = $this->record->from_email;
-        $subject = $this->replySubject($this->record->subject);
+        $replyTarget = $this->getReplyTarget();
+
+        $to = $replyTarget->from_email;
+        $subject = $replyTarget->subject;
+
+        /** @var MailSettings $mailSettings */
+        $mailSettings = app(MailSettings::class);
+
+        if (! $mailSettings->enabled()) {
+            Notification::make()
+                ->title('Mail is disabled')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $senderName = $mailSettings->senderName();
+        $senderEmail = $mailSettings->senderEmail();
+        $replyTo = $mailSettings->replyTo();
 
         try {
             /** @var ResendClient $resend */
             $resend = app(ResendClient::class);
 
-            $sent = $resend->emails->send([
-                'from' => 'Archvadze <admin@archvadze.com>',
+            $sendPayload = [
+                'from' => "{$senderName} <{$senderEmail}>",
                 'to' => [$to],
                 'subject' => $subject,
                 'text' => $body,
                 'headers' => [
-                    'In-Reply-To' => $this->record->message_id,
-                    'References' => $this->record->message_id,
+                    'In-Reply-To' => $replyTarget->message_id,
+                    'References' => $replyTarget->message_id,
                 ],
-            ]);
+            ];
+
+            if ($replyTo) {
+                $sendPayload['reply_to'] = [$replyTo];
+            }
+
+            $sent = $resend->emails->send($sendPayload);
 
             EmailMessage::create([
-                'email_thread_id' => $this->record->email_thread_id,
+                'email_thread_id' => $replyTarget->email_thread_id,
                 'direction' => 'outbound',
                 'source' => 'resend',
                 'message_id' => $sent->id,
-                'in_reply_to' => $this->record->message_id,
-                'from_name' => 'Archvadze',
-                'from_email' => 'admin@archvadze.com',
+                'in_reply_to' => $replyTarget->message_id,
+                'from_name' => $senderName,
+                'from_email' => $senderEmail,
                 'to_email' => $to,
                 'subject' => $subject,
                 'text_body' => $body,

@@ -4,6 +4,7 @@ namespace App\Listeners;
 
 use App\Models\EmailMessage;
 use App\Models\EmailThread;
+use App\Services\MailSettings;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Resend\Contracts\Client as ResendClient;
@@ -13,7 +14,8 @@ use Throwable;
 class HandleReceivedEmail
 {
     public function __construct(
-        private ResendClient $resend
+        private ResendClient $resend,
+        private MailSettings $mailSettings
     ) {}
 
     public function handle(EmailReceived $event): void
@@ -100,7 +102,7 @@ class HandleReceivedEmail
                 'message_id' => $messageId,
                 'from_name' => $fromName,
                 'from_email' => $fromEmail ?: 'unknown@example.invalid',
-                'to_email' => $toEmail ?: config('agency.admin_email'),
+                'to_email' => $toEmail ?: $this->mailSettings->inboxEmail(),
                 'subject' => $subject,
                 'text_body' => $received->text ?? null,
                 'html_body' => $received->html ?? null,

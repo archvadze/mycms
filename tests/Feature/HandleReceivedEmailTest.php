@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Listeners\HandleReceivedEmail;
 use App\Models\EmailMessage;
 use App\Models\EmailThread;
+use App\Services\MailSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Resend\Contracts\Client as ResendClient;
 use Resend\Laravel\Events\EmailReceived;
@@ -17,14 +18,16 @@ class HandleReceivedEmailTest extends TestCase
     private function listenerWithFakeReceivedEmail(object $received): HandleReceivedEmail
     {
         $client = $this->createMock(ResendClient::class);
+        $mailSettings = app(MailSettings::class);
 
-        return new class($client, $received) extends HandleReceivedEmail
+        return new class($client, $mailSettings, $received) extends HandleReceivedEmail
         {
             public function __construct(
                 ResendClient $resend,
+                MailSettings $mailSettings,
                 private object $fakeReceived
             ) {
-                parent::__construct($resend);
+                parent::__construct($resend, $mailSettings);
             }
 
             protected function retrieveReceivedEmail(string $emailId): object
@@ -33,7 +36,6 @@ class HandleReceivedEmailTest extends TestCase
             }
         };
     }
-
     public function test_received_email_creates_thread_and_message(): void
     {
         $received = (object) [
