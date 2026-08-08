@@ -114,6 +114,59 @@ class EmailMessageResource extends Resource
                 ])
                 ->columns(1),
 
+
+            Section::make('Attachments')
+                ->schema([
+                    RepeatableEntry::make('attachment_items')
+                        ->label('')
+                        ->state(function (EmailMessage $record): array {
+                            return collect($record->attachments ?? [])
+                                ->map(function (array $attachment) use ($record): array {
+                                    return [
+                                        'filename' => $attachment['filename'] ?? 'attachment',
+                                        'content_type' => $attachment['content_type'] ?? null,
+                                        'size' => $attachment['size'] ?? null,
+                                        'download_url' => ! empty($attachment['id'])
+                                            ? route(
+                                                'email-messages.attachments.download',
+                                                [
+                                                    'message' => $record->id,
+                                                    'attachmentId' => $attachment['id'],
+                                                ]
+                                            )
+                                            : null,
+                                    ];
+                                })
+                                ->all();
+                        })
+                        ->schema([
+                            TextEntry::make('filename')
+                                ->label('File')
+                                ->url(fn($record): ?string => $record['download_url'] ?? null)
+                                ->openUrlInNewTab(),
+
+                            TextEntry::make('content_type')
+                                ->label('Type'),
+
+                            TextEntry::make('size')
+                                ->label('Size')
+                                ->formatStateUsing(
+                                    fn($state): string =>
+                                    is_numeric($state)
+                                        ? number_format(((int) $state) / 1024, 1) . ' KB'
+                                        : '—'
+                                ),
+                        ])
+                        ->columns(3)
+                        ->columnSpanFull(),
+                ])
+                ->columns(1)
+                ->columnSpanFull()
+                ->visible(
+                    fn(EmailMessage $record): bool =>
+                    count($record->attachments ?? []) > 0
+                ),
+
             Section::make('Conversation (Full email thread in chronological order)')
                 ->schema([
                     RepeatableEntry::make('conversation')
