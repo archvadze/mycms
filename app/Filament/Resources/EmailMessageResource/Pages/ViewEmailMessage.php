@@ -81,26 +81,11 @@ class ViewEmailMessage extends ViewRecord
                 ],
             ]);
 
-            $sentMessageId = null;
-
-            for ($attempt = 1; $attempt <= 5; $attempt++) {
-                $sentEmail = $resend->emails->get($sent->id);
-
-                if (! empty($sentEmail->message_id)) {
-                    $sentMessageId = $sentEmail->message_id;
-                    break;
-                }
-
-                usleep(300_000);
-            }
-
-            $sentMessageId ??= $sent->id;
-
             EmailMessage::create([
                 'email_thread_id' => $this->record->email_thread_id,
                 'direction' => 'outbound',
                 'source' => 'resend',
-                'message_id' => $sentMessageId,
+                'message_id' => $sent->id,
                 'in_reply_to' => $this->record->message_id,
                 'from_name' => 'Archvadze',
                 'from_email' => 'admin@archvadze.com',
@@ -125,41 +110,16 @@ class ViewEmailMessage extends ViewRecord
                 ->success()
                 ->send();
         } catch (Throwable $e) {
-            $configHasKey = is_string(config('resend.api_key'))
-                && config('resend.api_key') !== '';
-
-            $envHasKey = is_string(getenv('RESEND_API_KEY'))
-                && getenv('RESEND_API_KEY') !== '';
-
-            $cachedConfigPath = app()->getCachedConfigPath();
-
-            $cachedConfigHasKey = false;
-
-            if (is_file($cachedConfigPath)) {
-                $cached = require $cachedConfigPath;
-
-                $cachedConfigHasKey = ! empty($cached['resend']['api_key']);
-            }
-
             \Log::error('Inbox reply failed', [
                 'email_message_id' => $this->record->id,
                 'thread_id' => $this->record->email_thread_id,
                 'exception' => get_class($e),
                 'error' => $e->getMessage(),
-                'resend_config_key_present' => $configHasKey,
-                'process_env_key_present' => $envHasKey,
-                'cached_config_key_present' => $cachedConfigHasKey,
-                'cached_config_path' => $cachedConfigPath,
             ]);
 
             Notification::make()
                 ->title('Reply could not be sent')
-                ->body(
-                    $e->getMessage()
-                        . ' | config=' . ($configHasKey ? 'yes' : 'no')
-                        . ' | env=' . ($envHasKey ? 'yes' : 'no')
-                        . ' | cache=' . ($cachedConfigHasKey ? 'yes' : 'no')
-                )
+                ->body('Please try again.')
                 ->danger()
                 ->send();
         }
