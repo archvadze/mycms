@@ -141,8 +141,12 @@ class EmailMessageResource extends Resource
                         })
                         ->schema([
                             TextEntry::make('filename')
-                                ->label('File')
-                                ->url(fn($record): ?string => $record['download_url'] ?? null)
+                                ->label('File'),
+
+                            TextEntry::make('download_url')
+                                ->label('Download')
+                                ->formatStateUsing(fn(): string => 'Download file')
+                                ->url(fn($state): ?string => $state)
                                 ->openUrlInNewTab(),
 
                             TextEntry::make('content_type')
@@ -157,7 +161,7 @@ class EmailMessageResource extends Resource
                                         : '—'
                                 ),
                         ])
-                        ->columns(3)
+                        ->columns(4)
                         ->columnSpanFull(),
                 ])
                 ->columns(1)
