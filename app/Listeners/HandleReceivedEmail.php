@@ -62,6 +62,12 @@ class HandleReceivedEmail
 
         $attachments = $received->attachments ?? [];
 
+        $headers = is_array($received->headers ?? null)
+            ? $received->headers
+            : [];
+
+        $thread = $this->resolveThreadFromHeaders($headers);
+
         DB::transaction(function () use (
             $payload,
             $received,
@@ -71,13 +77,21 @@ class HandleReceivedEmail
             $fromEmail,
             $toEmail,
             $subject,
-            $attachments
+            $attachments,
+            $thread,
+            $headers
         ) {
-            $thread = EmailThread::create([
-                'subject' => $subject,
-                'status' => 'open',
-                'last_message_at' => $received->created_at ?? now(),
-            ]);
+            if (! $thread) {
+                $thread = EmailThread::create([
+                    'subject' => $subject,
+                    'status' => 'open',
+                    'last_message_at' => $received->created_at ?? now(),
+                ]);
+            } else {
+                $thread->update([
+                    'last_message_at' => $received->created_at ?? now(),
+                ]);
+            }
 
             EmailMessage::create([
                 'email_thread_id' => $thread->id,
@@ -93,7 +107,7 @@ class HandleReceivedEmail
                 'attachments' => $attachments,
                 'metadata' => [
                     'resend_email_id' => $emailId,
-                    'headers' => $received->headers ?? null,
+                    'headers' => $headers,
                     'reply_to' => $received->reply_to ?? null,
                     'cc' => $received->cc ?? null,
                     'bcc' => $received->bcc ?? null,
@@ -108,6 +122,58 @@ class HandleReceivedEmail
     protected function retrieveReceivedEmail(string $emailId): object
     {
         return $this->resend->emails->receiving->get($emailId);
+    }
+
+    private function resolveThreadFromHeaders(array $headers): ?EmailThread
+    {
+        $candidateMessageIds = [];
+
+        foreach (['in-reply-to', 'In-Reply-To', 'references', 'References'] as $key) {
+            if (empty($headers[$key])) {
+                continue;
+            }
+
+            $value = $headers[$key];
+
+            if (is_array($value)) {
+                $value = implode(' ', $value);
+            }
+
+            $candidateMessageIds = array_merge(
+                $candidateMessageIds,
+                $this->extractMessageIds((string) $value)
+            );
+        }
+
+        $candidateMessageIds = array_values(array_unique($candidateMessageIds));
+
+        if ($candidateMessageIds === []) {
+            return null;
+        }
+
+        $message = EmailMessage::query()
+            ->whereIn('message_id', $candidateMessageIds)
+            ->orderByDesc('id')
+            ->first();
+
+        return $message?->thread;
+    }
+
+    private function extractMessageIds(string $value): array
+    {
+        preg_match_all('/<([^>]+)>|([^\s<>]+@[^\s<>]+)/', $value, $matches);
+
+        $messageIds = [];
+
+        foreach ($matches[1] as $index => $bracketed) {
+            $messageId = $bracketed ?: ($matches[2][$index] ?? null);
+
+            if ($messageId) {
+                $messageIds[] = trim($messageId);
+            }
+        }
+
+        return $messageIds;
     }
 
     private function parseAddress(string $address): array

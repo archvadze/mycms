@@ -115,4 +115,134 @@ class HandleReceivedEmailTest extends TestCase
         $this->assertDatabaseCount('email_threads', 1);
         $this->assertDatabaseCount('email_messages', 1);
     }
+
+    public function test_received_reply_reuses_existing_thread_from_references(): void
+    {
+        $thread = EmailThread::create([
+            'subject' => 'Original subject',
+            'status' => 'open',
+            'last_message_at' => now()->subMinute(),
+        ]);
+
+        EmailMessage::create([
+            'email_thread_id' => $thread->id,
+            'direction' => 'inbound',
+            'source' => 'resend',
+            'message_id' => 'original-message@example.com',
+            'from_name' => 'Original Sender',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'admin@archvadze.com',
+            'subject' => 'Original subject',
+            'text_body' => 'Original body',
+            'html_body' => null,
+            'attachments' => [],
+            'metadata' => [],
+            'is_read' => true,
+            'received_at' => now()->subMinute(),
+        ]);
+
+        $received = (object) [
+            'id' => 'test-email-reply',
+            'from' => 'Test Sender <sender@example.com>',
+            'to' => ['admin@archvadze.com'],
+            'created_at' => now()->toISOString(),
+            'subject' => 'Re: Original subject',
+            'html' => '<p>Reply body</p>',
+            'text' => 'Reply body',
+            'message_id' => '<reply-message@example.com>',
+            'headers' => [
+                'references' => '<older-message@example.com> <original-message@example.com>',
+            ],
+            'reply_to' => null,
+            'cc' => null,
+            'bcc' => null,
+            'attachments' => [],
+        ];
+
+        $listener = $this->listenerWithFakeReceivedEmail($received);
+
+        $listener->handle(new EmailReceived([
+            'type' => 'email.received',
+            'data' => [
+                'email_id' => 'test-email-reply',
+            ],
+        ]));
+
+        $this->assertDatabaseCount('email_threads', 1);
+        $this->assertDatabaseCount('email_messages', 2);
+
+        $reply = EmailMessage::query()
+            ->where('message_id', '<reply-message@example.com>')
+            ->firstOrFail();
+
+        $this->assertSame($thread->id, $reply->email_thread_id);
+        $this->assertSame('inbound', $reply->direction);
+        $this->assertSame('Re: Original subject', $reply->subject);
+
+        $thread->refresh();
+
+        $this->assertNotNull($thread->last_message_at);
+    }
+
+    public function test_received_reply_reuses_existing_thread_from_in_reply_to(): void
+    {
+        $thread = EmailThread::create([
+            'subject' => 'Another subject',
+            'status' => 'open',
+            'last_message_at' => now()->subMinute(),
+        ]);
+
+        EmailMessage::create([
+            'email_thread_id' => $thread->id,
+            'direction' => 'outbound',
+            'source' => 'resend',
+            'message_id' => 'outbound-message@example.com',
+            'from_name' => 'Archvadze',
+            'from_email' => 'admin@archvadze.com',
+            'to_email' => 'sender@example.com',
+            'subject' => 'Re: Another subject',
+            'text_body' => 'Outbound body',
+            'html_body' => null,
+            'attachments' => [],
+            'metadata' => [],
+            'is_read' => true,
+            'sent_at' => now()->subMinute(),
+        ]);
+
+        $received = (object) [
+            'id' => 'test-email-in-reply-to',
+            'from' => 'Test Sender <sender@example.com>',
+            'to' => ['admin@archvadze.com'],
+            'created_at' => now()->toISOString(),
+            'subject' => 'Re: Another subject',
+            'html' => null,
+            'text' => 'Reply via In-Reply-To',
+            'message_id' => '<reply-in-reply-to@example.com>',
+            'headers' => [
+                'in-reply-to' => '<outbound-message@example.com>',
+            ],
+            'reply_to' => null,
+            'cc' => null,
+            'bcc' => null,
+            'attachments' => [],
+        ];
+
+        $listener = $this->listenerWithFakeReceivedEmail($received);
+
+        $listener->handle(new EmailReceived([
+            'type' => 'email.received',
+            'data' => [
+                'email_id' => 'test-email-in-reply-to',
+            ],
+        ]));
+
+        $this->assertDatabaseCount('email_threads', 1);
+        $this->assertDatabaseCount('email_messages', 2);
+
+        $reply = EmailMessage::query()
+            ->where('message_id', '<reply-in-reply-to@example.com>')
+            ->firstOrFail();
+
+        $this->assertSame($thread->id, $reply->email_thread_id);
+    }
 }
