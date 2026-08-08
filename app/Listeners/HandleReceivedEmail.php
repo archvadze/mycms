@@ -151,8 +151,19 @@ class HandleReceivedEmail
             return null;
         }
 
+        $messageIdVariants = [];
+
+        foreach ($candidateMessageIds as $messageId) {
+            $normalized = trim($messageId, '<>');
+
+            $messageIdVariants[] = $normalized;
+            $messageIdVariants[] = '<' . $normalized . '>';
+        }
+
+        $messageIdVariants = array_values(array_unique($messageIdVariants));
+
         $message = EmailMessage::query()
-            ->whereIn('message_id', $candidateMessageIds)
+            ->whereIn('message_id', $messageIdVariants)
             ->orderByDesc('id')
             ->first();
 
