@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Listeners\HandleReceivedEmail;
 use App\Models\EmailMessage;
 use App\Models\EmailThread;
-use App\Services\MailSettings;
 use App\Services\Mail\AttachmentPolicy;
+use App\Services\MailSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Resend\Contracts\Client as ResendClient;
 use Resend\Laravel\Events\EmailReceived;
@@ -48,7 +48,7 @@ class HandleReceivedEmailTest extends TestCase
             }
         };
     }
-    
+
     public function test_received_email_creates_thread_and_message(): void
     {
         $received = (object) [
@@ -61,7 +61,7 @@ class HandleReceivedEmailTest extends TestCase
             'text' => 'Hello from test',
             'message_id' => '<test-email-001@example.com>',
             'headers' => [],
-            'reply_to' => null,
+            'reply_to' => 'reply@example.com',
             'cc' => null,
             'bcc' => null,
             'attachments' => [],
@@ -90,6 +90,29 @@ class HandleReceivedEmailTest extends TestCase
         $this->assertSame('Hello from test', $message->text_body);
         $this->assertSame('<p>Hello from test</p>', $message->html_body);
         $this->assertFalse($message->is_read);
+
+        $this->assertSame(
+            'test-email-001',
+            data_get($message->metadata, 'resend_email_id')
+        );
+
+        $this->assertSame(
+            'reply@example.com',
+            data_get($message->metadata, 'reply_to')
+        );
+
+        $this->assertNull(
+            data_get($message->metadata, 'in_reply_to')
+        );
+
+        $this->assertNull(
+            data_get($message->metadata, 'references')
+        );
+
+        $this->assertArrayNotHasKey(
+            'headers',
+            $message->metadata
+        );
 
         $this->assertSame(
             'Inbox test',
@@ -194,6 +217,25 @@ class HandleReceivedEmailTest extends TestCase
         $this->assertSame('inbound', $reply->direction);
         $this->assertSame('Re: Original subject', $reply->subject);
 
+        $this->assertSame(
+            'test-email-reply',
+            data_get($reply->metadata, 'resend_email_id')
+        );
+
+        $this->assertSame(
+            '<older-message@example.com> <original-message@example.com>',
+            data_get($reply->metadata, 'references')
+        );
+
+        $this->assertNull(
+            data_get($reply->metadata, 'in_reply_to')
+        );
+
+        $this->assertArrayNotHasKey(
+            'headers',
+            $reply->metadata
+        );
+
         $thread->refresh();
 
         $this->assertNotNull($thread->last_message_at);
@@ -259,5 +301,24 @@ class HandleReceivedEmailTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame($thread->id, $reply->email_thread_id);
+
+        $this->assertSame(
+            'test-email-in-reply-to',
+            data_get($reply->metadata, 'resend_email_id')
+        );
+
+        $this->assertSame(
+            '<outbound-message@example.com>',
+            data_get($reply->metadata, 'in_reply_to')
+        );
+
+        $this->assertNull(
+            data_get($reply->metadata, 'references')
+        );
+
+        $this->assertArrayNotHasKey(
+            'headers',
+            $reply->metadata
+        );
     }
 }

@@ -111,16 +111,31 @@ class HandleReceivedEmail
                 'attachments' => $this->evaluateAttachments($attachments),
                 'metadata' => [
                     'resend_email_id' => $emailId,
-                    'headers' => $headers,
+                    'in_reply_to' => $this->headerValue($headers, [
+                        'in-reply-to',
+                        'In-Reply-To',
+                    ]),
+                    'references' => $this->headerValue($headers, [
+                        'references',
+                        'References',
+                    ]),
                     'reply_to' => $received->reply_to ?? null,
-                    'cc' => $received->cc ?? null,
-                    'bcc' => $received->bcc ?? null,
-                    'webhook' => $payload,
                 ],
                 'is_read' => false,
                 'received_at' => $received->created_at ?? now(),
             ]);
         });
+    }
+
+    private function headerValue(array $headers, array $keys): mixed
+    {
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $headers)) {
+                return $headers[$key];
+            }
+        }
+
+        return null;
     }
 
     protected function retrieveReceivedEmail(string $emailId): object
