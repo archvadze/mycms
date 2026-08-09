@@ -1,10 +1,9 @@
 <?php
 namespace App\Filament\Widgets;
 
-use App\Models\Client;
-use App\Models\Order;
-use App\Models\Project;
-use App\Models\Publication;
+use App\Filament\Resources\EmailMessageResource;
+use App\Filament\Resources\OrderResource;
+use App\Services\AdminDashboardOverview;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -12,28 +11,56 @@ class StatsOverviewWidget extends BaseWidget
 {
     protected static ?int $sort = 1;
 
+    public static function canView(): bool
+    {
+        return EmailMessageResource::canViewAny() || OrderResource::canViewAny();
+    }
+
     protected function getStats(): array
     {
-        return [
-            Stat::make('Total Clients', Client::count())
-                ->description('Registered clients')
-                ->descriptionIcon('heroicon-o-users')
-                ->color('primary'),
+        /** @var AdminDashboardOverview $overview */
+        $overview = app(AdminDashboardOverview::class);
 
-            Stat::make('Active Projects', Project::where('status', 'in_progress')->count())
-                ->description('Total: ' . Project::count() . ' projects')
-                ->descriptionIcon('heroicon-o-folder')
-                ->color('warning'),
+        $stats = [];
 
-            Stat::make('Pending Orders', Order::where('status', 'pending')->count())
-                ->description('Total: ' . Order::count() . ' orders')
+        if (EmailMessageResource::canViewAny()) {
+            $email = $overview->emailMetrics();
+
+            $stats[] = Stat::make(
+                'Open email conversations',
+                $email['open_conversations']
+            )
+                ->description('Threads with open status')
+                ->descriptionIcon('heroicon-o-envelope')
+                ->color('primary')
+                ->url(EmailMessageResource::getUrl());
+
+            $stats[] = Stat::make(
+                'Unread email conversations',
+                $email['unread_conversations']
+            )
+                ->description('Latest inbound message is unread')
+                ->descriptionIcon('heroicon-o-envelope')
+                ->color('danger')
+                ->url(EmailMessageResource::getUrl());
+        }
+
+        if (OrderResource::canViewAny()) {
+            $orders = $overview->orderMetrics();
+
+            $stats[] = Stat::make('Pending orders', $orders['pending_orders'])
+                ->description('Orders with pending status')
                 ->descriptionIcon('heroicon-o-shopping-bag')
-                ->color('danger'),
+                ->color('warning')
+                ->url(OrderResource::getUrl());
 
-            Stat::make('Publications', Publication::where('is_published', true)->count())
-                ->description('Published articles')
-                ->descriptionIcon('heroicon-o-document-text')
-                ->color('success'),
-        ];
+            $stats[] = Stat::make('Total orders', $orders['total_orders'])
+                ->description('All stored orders')
+                ->descriptionIcon('heroicon-o-shopping-bag')
+                ->color('gray')
+                ->url(OrderResource::getUrl());
+        }
+
+        return $stats;
     }
 }

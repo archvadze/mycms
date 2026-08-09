@@ -1,25 +1,47 @@
 <?php
 namespace App\Filament\Widgets;
 
-use App\Models\Order;
+use App\Filament\Resources\OrderResource;
+use App\Services\AdminDashboardOverview;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
+use Illuminate\Database\Eloquent\Builder;
 
 class RecentOrdersWidget extends BaseWidget
 {
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 3;
+
     protected int|string|array $columnSpan = 'full';
+
     protected static ?string $heading = 'Recent Orders';
+
+    public static function canView(): bool
+    {
+        return OrderResource::canViewAny();
+    }
 
     public function table(Table $table): Table
     {
+        /** @var AdminDashboardOverview $overview */
+        $overview = app(AdminDashboardOverview::class);
+
         return $table
-            ->query(Order::latest()->limit(5))
+            ->query(fn(): Builder => $overview->recentOrdersQuery())
+            ->paginated(false)
             ->columns([
-                Tables\Columns\TextColumn::make('client_name')->label('Client'),
-                Tables\Columns\TextColumn::make('domain'),
-                Tables\Columns\TextColumn::make('price_estimate')->money('USD')->label('Estimate'),
+                Tables\Columns\TextColumn::make('id')
+                    ->label('#')
+                    ->sortable()
+                    ->width(60),
+                Tables\Columns\TextColumn::make('client_name')
+                    ->label('Client')
+                    ->searchable()
+                    ->limit(28),
+                Tables\Columns\TextColumn::make('email')
+                    ->label('Email')
+                    ->limit(32)
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('status')->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'pending'   => 'warning',
@@ -28,7 +50,17 @@ class RecentOrdersWidget extends BaseWidget
                         'rejected'  => 'danger',
                         default     => 'gray',
                     }),
-                Tables\Columns\TextColumn::make('created_at')->since()->label('Date'),
-            ]);
+                Tables\Columns\TextColumn::make('price_estimate')
+                    ->money('USD')
+                    ->label('Estimate'),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->since()
+                    ->label('Created')
+                    ->sortable(),
+            ])
+            ->recordUrl(
+                fn($record): string =>
+                OrderResource::getUrl('view', ['record' => $record])
+            );
     }
 }
