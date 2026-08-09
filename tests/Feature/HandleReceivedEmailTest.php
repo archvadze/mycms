@@ -321,4 +321,64 @@ class HandleReceivedEmailTest extends TestCase
             $reply->metadata
         );
     }
+
+    public function test_closed_thread_reopens_when_inbound_reply_is_received(): void
+    {
+        $thread = EmailThread::create([
+            'subject' => 'Closed subject',
+            'status' => 'closed',
+            'last_message_at' => now()->subMinute(),
+        ]);
+
+        EmailMessage::create([
+            'email_thread_id' => $thread->id,
+            'direction' => 'outbound',
+            'source' => 'resend',
+            'message_id' => '<closed-thread-outbound@example.com>',
+            'from_name' => 'Archvadze',
+            'from_email' => 'admin@archvadze.com',
+            'to_email' => 'sender@example.com',
+            'subject' => 'Re: Closed subject',
+            'text_body' => 'Outbound body',
+            'html_body' => null,
+            'attachments' => [],
+            'metadata' => [],
+            'is_read' => true,
+            'sent_at' => now()->subMinute(),
+        ]);
+
+        $received = (object) [
+            'id' => 'test-email-reopens-closed',
+            'from' => 'Test Sender <sender@example.com>',
+            'to' => ['admin@archvadze.com'],
+            'created_at' => now()->toISOString(),
+            'subject' => 'Re: Closed subject',
+            'html' => null,
+            'text' => 'Reply to closed thread',
+            'message_id' => '<closed-thread-reply@example.com>',
+            'headers' => [
+                'in-reply-to' => '<closed-thread-outbound@example.com>',
+            ],
+            'reply_to' => null,
+            'cc' => null,
+            'bcc' => null,
+            'attachments' => [],
+        ];
+
+        $listener = $this->listenerWithFakeReceivedEmail($received);
+
+        $listener->handle(new EmailReceived([
+            'type' => 'email.received',
+            'data' => [
+                'email_id' => 'test-email-reopens-closed',
+            ],
+        ]));
+
+        $this->assertSame('open', $thread->fresh()->status);
+        $this->assertDatabaseHas('email_messages', [
+            'email_thread_id' => $thread->id,
+            'message_id' => '<closed-thread-reply@example.com>',
+            'is_read' => false,
+        ]);
+    }
 }

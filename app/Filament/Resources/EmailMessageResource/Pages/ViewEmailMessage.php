@@ -20,28 +20,45 @@ class ViewEmailMessage extends ViewRecord
     {
         parent::mount($record);
 
-        if ($this->record->thread) {
-            $this->record->thread
-                ->messages()
-                ->where('direction', 'inbound')
-                ->where('is_read', false)
-                ->update([
-                    'is_read' => true,
-                ]);
-
-            return;
-        }
-
-        if (! $this->record->is_read) {
-            $this->record->update([
-                'is_read' => true,
-            ]);
-        }
+        EmailMessageResource::markConversationRead($this->record);
     }
     
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('close_conversation')
+                ->label('Close Conversation')
+                ->icon('heroicon-o-x-circle')
+                ->color('warning')
+                ->visible(
+                    fn(): bool => $this->record->thread
+                        && $this->record->thread->status !== 'closed'
+                )
+                ->action(function (): void {
+                    $this->record->thread?->update(['status' => 'closed']);
+                    $this->record->load('thread');
+
+                    Notification::make()
+                        ->title('Conversation closed')
+                        ->success()
+                        ->send();
+                }),
+            Actions\Action::make('reopen_conversation')
+                ->label('Reopen Conversation')
+                ->icon('heroicon-o-arrow-path')
+                ->color('success')
+                ->visible(
+                    fn(): bool => $this->record->thread?->status === 'closed'
+                )
+                ->action(function (): void {
+                    $this->record->thread?->update(['status' => 'open']);
+                    $this->record->load('thread');
+
+                    Notification::make()
+                        ->title('Conversation reopened')
+                        ->success()
+                        ->send();
+                }),
             Actions\Action::make('reply')
                 ->label('Reply')
                 ->icon('heroicon-o-arrow-uturn-left')

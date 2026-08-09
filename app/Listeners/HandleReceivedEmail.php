@@ -93,6 +93,7 @@ class HandleReceivedEmail
                 ]);
             } else {
                 $thread->update([
+                    'status' => 'open',
                     'last_message_at' => $received->created_at ?? now(),
                 ]);
             }

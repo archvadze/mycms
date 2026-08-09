@@ -3,18 +3,20 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\EmailMessageResource\Pages;
-use App\Services\Mail\AttachmentPolicy;
 use App\Models\EmailMessage;
 use App\Models\EmailThread;
+use App\Services\Mail\AttachmentPolicy;
+use Filament\Actions;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Notifications\Notification;
 use Filament\Forms;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Builder;
 
 
@@ -72,6 +74,102 @@ class EmailMessageResource extends Resource
     public static function getNavigationBadgeColor(): ?string
     {
         return 'danger';
+    }
+
+    public static function markConversationRead(EmailMessage $record): void
+    {
+        if (! $record->thread) {
+            $record->update(['is_read' => true]);
+
+            return;
+        }
+
+        $record->thread
+            ->messages()
+            ->where('direction', 'inbound')
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+    }
+
+    public static function markConversationUnread(EmailMessage $record): void
+    {
+        if (! $record->thread) {
+            $record->update(['is_read' => false]);
+
+            return;
+        }
+
+        $record->thread
+            ->messages()
+            ->where('direction', 'inbound')
+            ->update(['is_read' => false]);
+    }
+
+    public static function updateConversationStatus(
+        EmailMessage $record,
+        string $status
+    ): void {
+        $record->thread?->update(['status' => $status]);
+    }
+
+    public static function markConversationsRead(Collection $records): void
+    {
+        static::updateConversationReadState($records, true);
+    }
+
+    public static function markConversationsUnread(Collection $records): void
+    {
+        static::updateConversationReadState($records, false);
+    }
+
+    public static function updateConversationsStatus(
+        Collection $records,
+        string $status
+    ): void {
+        $threadIds = $records
+            ->pluck('email_thread_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($threadIds->isEmpty()) {
+            return;
+        }
+
+        EmailThread::query()
+            ->whereIn('id', $threadIds)
+            ->update(['status' => $status]);
+    }
+
+    private static function updateConversationReadState(
+        Collection $records,
+        bool $isRead
+    ): void {
+        $threadIds = $records
+            ->pluck('email_thread_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($threadIds->isNotEmpty()) {
+            EmailMessage::query()
+                ->whereIn('email_thread_id', $threadIds)
+                ->where('direction', 'inbound')
+                ->update(['is_read' => $isRead]);
+        }
+
+        $messageIds = $records
+            ->filter(
+                fn(EmailMessage $record): bool =>
+                $record->email_thread_id === null
+            )
+            ->pluck('id');
+
+        if ($messageIds->isNotEmpty()) {
+            EmailMessage::query()
+                ->whereIn('id', $messageIds)
+                ->update(['is_read' => $isRead]);
+        }
     }
 
     public static function form(Schema $schema): Schema
@@ -198,7 +296,7 @@ class EmailMessageResource extends Resource
                                 ->formatStateUsing(
                                     fn($state): string => $state
                                         ? 'Blocked: ' . $state
-                                        : 'Allowed'
+                                        : 'Allowed - not malware scanned'
                                 )
                                 ->badge()
                                 ->color(
@@ -289,6 +387,7 @@ class EmailMessageResource extends Resource
         return $table
             ->modifyQueryUsing(
                 fn(Builder $query) => $query
+                    ->with('thread')
                     ->where('direction', 'inbound')
                     ->where(function (Builder $query): void {
                         $query
@@ -338,44 +437,6 @@ class EmailMessageResource extends Resource
                         $record->is_read ? 'regular' : 'bold'
                     ),
 
-                Tables\Columns\TextColumn::make('thread.status')
-                    ->label('')
-                    ->badge()
-                    ->formatStateUsing(
-                        fn(?string $state): string =>
-                        $state === 'closed'
-                            ? 'Open Conv'
-                            : 'Close Conv'
-                    )
-                    ->color(
-                        fn(?string $state): string =>
-                        $state === 'closed'
-                            ? 'warning'
-                            : 'success'
-                    )
-                    ->action(function (EmailMessage $record): void {
-                        if (! $record->thread) {
-                            return;
-                        }
-
-                        $newStatus = $record->thread->status === 'closed'
-                            ? 'open'
-                            : 'closed';
-
-                        $record->thread->update([
-                            'status' => $newStatus,
-                        ]);
-
-                        Notification::make()
-                            ->title(
-                                $newStatus === 'closed'
-                                    ? 'Conversation closed'
-                                    : 'Conversation reopened'
-                            )
-                            ->success()
-                            ->send();
-                    }),
-
                 Tables\Columns\TextColumn::make('received_at')
                     ->label('Received')
                     ->dateTime('M j, H:i')
@@ -414,13 +475,138 @@ class EmailMessageResource extends Resource
                             $threadQuery->where('status', $value)
                         );
                     }),
+                Tables\Filters\SelectFilter::make('read_status')
+                    ->label('Read')
+                    ->options([
+                        'read' => 'Read',
+                        'unread' => 'Unread',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return match ($data['value'] ?? null) {
+                            'read' => $query->where('is_read', true),
+                            'unread' => $query->where('is_read', false),
+                            default => $query,
+                        };
+                    }),
+                Tables\Filters\Filter::make('received_date')
+                    ->schema([
+                        Forms\Components\DatePicker::make('received_from')
+                            ->label('Received from'),
+                        Forms\Components\DatePicker::make('received_until')
+                            ->label('Received until'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['received_from'] ?? null,
+                                fn(Builder $query, string $date): Builder =>
+                                $query->whereDate('received_at', '>=', $date)
+                            )
+                            ->when(
+                                $data['received_until'] ?? null,
+                                fn(Builder $query, string $date): Builder =>
+                                $query->whereDate('received_at', '<=', $date)
+                            );
+                    }),
             ])
             ->defaultSort('received_at', 'desc')
             ->recordUrl(
                 fn(EmailMessage $record): string =>
                 static::getUrl('view', ['record' => $record])
             )
-            ->actions([]);
+            ->actions([
+                Actions\ActionGroup::make([
+                    Actions\Action::make('mark_read')
+                        ->label('Mark read')
+                        ->icon('heroicon-o-envelope-open')
+                        ->visible(fn(EmailMessage $record): bool => ! $record->is_read)
+                        ->action(function (EmailMessage $record): void {
+                            static::markConversationRead($record);
+
+                            Notification::make()
+                                ->title('Conversation marked read')
+                                ->success()
+                                ->send();
+                        }),
+                    Actions\Action::make('mark_unread')
+                        ->label('Mark unread')
+                        ->icon('heroicon-o-envelope')
+                        ->visible(fn(EmailMessage $record): bool => $record->is_read)
+                        ->action(function (EmailMessage $record): void {
+                            static::markConversationUnread($record);
+
+                            Notification::make()
+                                ->title('Conversation marked unread')
+                                ->success()
+                                ->send();
+                        }),
+                    Actions\Action::make('close_conversation')
+                        ->label('Close conversation')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('warning')
+                        ->visible(
+                            fn(EmailMessage $record): bool =>
+                            $record->thread && $record->thread->status !== 'closed'
+                        )
+                        ->action(function (EmailMessage $record): void {
+                            static::updateConversationStatus($record, 'closed');
+
+                            Notification::make()
+                                ->title('Conversation closed')
+                                ->success()
+                                ->send();
+                        }),
+                    Actions\Action::make('reopen_conversation')
+                        ->label('Reopen conversation')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('success')
+                        ->visible(
+                            fn(EmailMessage $record): bool =>
+                            $record->thread?->status === 'closed'
+                        )
+                        ->action(function (EmailMessage $record): void {
+                            static::updateConversationStatus($record, 'open');
+
+                            Notification::make()
+                                ->title('Conversation reopened')
+                                ->success()
+                                ->send();
+                        }),
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->iconButton(),
+            ])
+            ->bulkActions([
+                Actions\BulkActionGroup::make([
+                    Actions\BulkAction::make('mark_read')
+                        ->label('Mark read')
+                        ->icon('heroicon-o-envelope-open')
+                        ->action(function (Collection $records): void {
+                            static::markConversationsRead($records);
+                        }),
+                    Actions\BulkAction::make('mark_unread')
+                        ->label('Mark unread')
+                        ->icon('heroicon-o-envelope')
+                        ->action(function (Collection $records): void {
+                            static::markConversationsUnread($records);
+                        }),
+                    Actions\BulkAction::make('close_conversations')
+                        ->label('Close conversations')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('warning')
+                        ->action(function (Collection $records): void {
+                            static::updateConversationsStatus($records, 'closed');
+                        }),
+                    Actions\BulkAction::make('reopen_conversations')
+                        ->label('Reopen conversations')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('success')
+                        ->action(function (Collection $records): void {
+                            static::updateConversationsStatus($records, 'open');
+                        }),
+                ]),
+            ]);
     }
 
     public static function getPages(): array
