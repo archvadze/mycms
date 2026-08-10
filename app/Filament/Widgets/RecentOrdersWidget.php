@@ -42,14 +42,16 @@ class RecentOrdersWidget extends BaseWidget
                     ->label('Email')
                     ->limit(32)
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('status')->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'pending'   => 'warning',
-                        'contacted' => 'info',
-                        'accepted'  => 'success',
-                        'rejected'  => 'danger',
-                        default     => 'gray',
-                    }),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->formatStateUsing(
+                        fn(?string $state): string =>
+                        OrderResource::statusLabel($state)
+                    )
+                    ->color(
+                        fn(?string $state): string =>
+                        OrderResource::statusColor($state)
+                    ),
                 Tables\Columns\TextColumn::make('price_estimate')
                     ->money('USD')
                     ->label('Estimate'),
