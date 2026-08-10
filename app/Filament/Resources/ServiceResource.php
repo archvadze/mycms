@@ -11,6 +11,8 @@ use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
 use App\Support\AdminAccess;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
 
 class ServiceResource extends Resource
 {
@@ -25,8 +27,17 @@ class ServiceResource extends Resource
         return AdminAccess::canManageContent();
     }
 
+    public static function canEdit(Model $record): bool
+    {
+        return AdminAccess::canManageContent();
+    }
+
     public static function setActive(Service $service, bool $active): void
     {
+        if (! static::canEdit($service)) {
+            throw new AuthorizationException();
+        }
+
         $service->update([
             'status' => $active,
             'is_active' => $active,
@@ -102,12 +113,14 @@ class ServiceResource extends Resource
                         ->label('Activate')
                         ->icon('heroicon-o-eye')
                         ->color('success')
+                        ->authorize(fn(Service $record): bool => static::canEdit($record))
                         ->visible(fn(Service $record): bool => ! $record->status)
                         ->action(fn(Service $record) => static::setActive($record, true)),
                     Actions\Action::make('deactivate')
                         ->label('Deactivate')
                         ->icon('heroicon-o-eye-slash')
                         ->color('warning')
+                        ->authorize(fn(Service $record): bool => static::canEdit($record))
                         ->visible(fn(Service $record): bool => (bool) $record->status)
                         ->action(fn(Service $record) => static::setActive($record, false)),
                     Actions\EditAction::make(),

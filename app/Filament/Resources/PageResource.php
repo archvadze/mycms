@@ -11,6 +11,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Schemas\Components\Section;
 use App\Support\AdminAccess;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
 
 class PageResource extends Resource
 {
@@ -21,6 +23,11 @@ class PageResource extends Resource
     protected static ?string $navigationLabel = 'Pages';
 
     public static function canViewAny(): bool
+    {
+        return AdminAccess::canManageSystemContent();
+    }
+
+    public static function canEdit(Model $record): bool
     {
         return AdminAccess::canManageSystemContent();
     }
@@ -41,6 +48,10 @@ class PageResource extends Resource
 
     public static function setPublished(Page $page, bool $published): void
     {
+        if (! static::canEdit($page)) {
+            throw new AuthorizationException();
+        }
+
         $page->update(['status' => $published ? 'published' : 'draft']);
     }
 
@@ -303,12 +314,14 @@ class PageResource extends Resource
                         ->label('Publish')
                         ->icon('heroicon-o-eye')
                         ->color('success')
+                        ->authorize(fn(Page $record): bool => static::canEdit($record))
                         ->visible(fn(Page $record): bool => $record->status !== 'published')
                         ->action(fn(Page $record) => static::setPublished($record, true)),
                     Actions\Action::make('unpublish')
                         ->label('Unpublish')
                         ->icon('heroicon-o-eye-slash')
                         ->color('warning')
+                        ->authorize(fn(Page $record): bool => static::canEdit($record))
                         ->visible(fn(Page $record): bool => $record->status === 'published')
                         ->action(fn(Page $record) => static::setPublished($record, false)),
                     Actions\EditAction::make(),

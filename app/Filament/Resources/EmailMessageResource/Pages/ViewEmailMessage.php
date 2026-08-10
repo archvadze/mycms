@@ -34,8 +34,9 @@ class ViewEmailMessage extends ViewRecord
                     fn(): bool => $this->record->thread
                         && $this->record->thread->status !== 'closed'
                 )
+                ->authorize(fn(): bool => EmailMessageResource::canEdit($this->record))
                 ->action(function (): void {
-                    $this->record->thread?->update(['status' => 'closed']);
+                    EmailMessageResource::updateConversationStatus($this->record, 'closed');
                     $this->record->load('thread');
 
                     Notification::make()
@@ -50,8 +51,9 @@ class ViewEmailMessage extends ViewRecord
                 ->visible(
                     fn(): bool => $this->record->thread?->status === 'closed'
                 )
+                ->authorize(fn(): bool => EmailMessageResource::canEdit($this->record))
                 ->action(function (): void {
-                    $this->record->thread?->update(['status' => 'open']);
+                    EmailMessageResource::updateConversationStatus($this->record, 'open');
                     $this->record->load('thread');
 
                     Notification::make()

@@ -13,6 +13,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use App\Support\AdminAccess;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class GuideResource extends Resource
@@ -28,8 +30,17 @@ class GuideResource extends Resource
         return AdminAccess::canManageContent();
     }
 
+    public static function canEdit(Model $record): bool
+    {
+        return AdminAccess::canManageContent();
+    }
+
     public static function setPublished(Guide $guide, bool $published): void
     {
+        if (! static::canEdit($guide)) {
+            throw new AuthorizationException();
+        }
+
         $guide->update([
             'published_at' => $published
                 ? ($guide->published_at ?? now())
@@ -122,12 +133,14 @@ class GuideResource extends Resource
                         ->label('Publish')
                         ->icon('heroicon-o-eye')
                         ->color('success')
+                        ->authorize(fn(Guide $record): bool => static::canEdit($record))
                         ->visible(fn(Guide $record): bool => blank($record->published_at))
                         ->action(fn(Guide $record) => static::setPublished($record, true)),
                     Actions\Action::make('unpublish')
                         ->label('Unpublish')
                         ->icon('heroicon-o-eye-slash')
                         ->color('warning')
+                        ->authorize(fn(Guide $record): bool => static::canEdit($record))
                         ->visible(fn(Guide $record): bool => filled($record->published_at))
                         ->action(fn(Guide $record) => static::setPublished($record, false)),
                     Actions\EditAction::make(),

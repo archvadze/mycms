@@ -42,6 +42,7 @@ class OrderOperationsWorkflowTest extends TestCase
     public function test_order_status_update_uses_existing_statuses_and_observer_behavior(): void
     {
         Mail::fake();
+        $this->actingAs($this->userWithRole('Admin'));
 
         $order = Order::factory()->create([
             'client_id' => null,
@@ -73,6 +74,7 @@ class OrderOperationsWorkflowTest extends TestCase
     public function test_pending_contacted_and_rejected_orders_can_transition_to_accepted(): void
     {
         Mail::fake();
+        $this->actingAs($this->userWithRole('Admin'));
 
         foreach (['pending', 'contacted', 'rejected'] as $status) {
             $order = Order::factory()->create([
@@ -93,6 +95,7 @@ class OrderOperationsWorkflowTest extends TestCase
     public function test_accepted_order_cannot_transition_back_to_contacted_or_rejected(): void
     {
         Mail::fake();
+        $this->actingAs($this->userWithRole('Admin'));
 
         $order = Order::factory()->create(['status' => 'accepted']);
 
@@ -119,6 +122,7 @@ class OrderOperationsWorkflowTest extends TestCase
     public function test_unchanged_accepted_order_does_not_create_duplicate_project(): void
     {
         Mail::fake();
+        $this->actingAs($this->userWithRole('Admin'));
 
         $order = Order::factory()->create([
             'client_id' => null,
@@ -205,5 +209,17 @@ class OrderOperationsWorkflowTest extends TestCase
 
         $this->assertSame(1, $metrics['pending_orders']);
         $this->assertSame(3, $metrics['total_orders']);
+    }
+
+    private function userWithRole(string $role): User
+    {
+        $user = User::factory()->create([
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
+
+        $user->assignRole($role);
+
+        return $user;
     }
 }

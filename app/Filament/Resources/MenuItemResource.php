@@ -11,6 +11,8 @@ use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
 use App\Support\AdminAccess;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
 
 class MenuItemResource extends Resource
 {
@@ -25,8 +27,17 @@ class MenuItemResource extends Resource
         return AdminAccess::canManageSystemContent();
     }
 
+    public static function canEdit(Model $record): bool
+    {
+        return AdminAccess::canManageSystemContent();
+    }
+
     public static function setActive(MenuItem $menuItem, bool $active): void
     {
+        if (! static::canEdit($menuItem)) {
+            throw new AuthorizationException();
+        }
+
         $menuItem->update(['is_active' => $active]);
     }
 
@@ -96,12 +107,14 @@ class MenuItemResource extends Resource
                         ->label('Activate')
                         ->icon('heroicon-o-eye')
                         ->color('success')
+                        ->authorize(fn(MenuItem $record): bool => static::canEdit($record))
                         ->visible(fn(MenuItem $record): bool => ! $record->is_active)
                         ->action(fn(MenuItem $record) => static::setActive($record, true)),
                     Actions\Action::make('deactivate')
                         ->label('Deactivate')
                         ->icon('heroicon-o-eye-slash')
                         ->color('warning')
+                        ->authorize(fn(MenuItem $record): bool => static::canEdit($record))
                         ->visible(fn(MenuItem $record): bool => (bool) $record->is_active)
                         ->action(fn(MenuItem $record) => static::setActive($record, false)),
                     Actions\EditAction::make(),

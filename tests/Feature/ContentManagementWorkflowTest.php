@@ -41,6 +41,7 @@ class ContentManagementWorkflowTest extends TestCase
     {
         Http::fake();
         Cache::put('home.publications', 'stale', 3600);
+        $this->actingAs($this->userWithRole('Editor'));
 
         $publication = Publication::factory()->draft()->create();
 
@@ -57,6 +58,7 @@ class ContentManagementWorkflowTest extends TestCase
     public function test_service_active_action_keeps_status_fields_aligned_and_clears_home_cache(): void
     {
         Cache::put('home.services', 'stale', 3600);
+        $this->actingAs($this->userWithRole('Editor'));
 
         $service = Service::factory()->create([
             'status' => true,
@@ -75,6 +77,7 @@ class ContentManagementWorkflowTest extends TestCase
     public function test_menu_item_active_action_clears_menu_cache(): void
     {
         Cache::put('menu.items', 'stale', 3600);
+        $this->actingAs($this->userWithRole('Super Admin'));
 
         $menuItem = MenuItem::create([
             'label' => 'Services',
@@ -282,5 +285,17 @@ class ContentManagementWorkflowTest extends TestCase
             'footerMenuItems' => new Collection(),
             'bottomMenuItems' => new Collection(),
         ])->render();
+    }
+
+    private function userWithRole(string $role): User
+    {
+        $user = User::factory()->create([
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
+
+        $user->assignRole($role);
+
+        return $user;
     }
 }

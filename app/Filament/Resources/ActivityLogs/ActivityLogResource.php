@@ -3,6 +3,7 @@ namespace App\Filament\Resources\ActivityLogs;
 
 use App\Filament\Resources\ActivityLogs\Pages\ListActivityLogs;
 use App\Filament\Resources\ActivityLogs\Pages\ViewActivityLog;
+use App\Models\User;
 use App\Support\AdminAccess;
 use App\Support\AuditLogFormatter;
 use Filament\Actions;
@@ -109,9 +110,8 @@ class ActivityLogResource extends Resource
             ->modifyQueryUsing(fn(Builder $query): Builder => $query->with(['causer', 'subject']))
             ->columns([
                 TextColumn::make('causer.name')
-                    ->label('User')
-                    ->default('System')
-                    ->searchable(),
+                    ->label('Actor')
+                    ->state(fn(Activity $record): string => AuditLogFormatter::causerLabel($record)),
                 TextColumn::make('event')
                     ->label('Event')
                     ->badge()
@@ -121,15 +121,13 @@ class ActivityLogResource extends Resource
                     ->searchable()
                     ->limit(60),
                 TextColumn::make('subject_type')
-                    ->label('Model')
-                    ->formatStateUsing(fn($state) => $state ? class_basename($state) : '-'),
-                TextColumn::make('subject_id')
-                    ->label('ID'),
+                    ->label('Subject')
+                    ->state(fn(Activity $record): string => AuditLogFormatter::subjectLabel($record)),
                 TextColumn::make('properties')
-                    ->label('Details')
+                    ->label('Changed Fields')
                     ->formatStateUsing(fn($state, Activity $record): string => AuditLogFormatter::changedFields($record))
                     ->wrap()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->placeholder('-'),
                 TextColumn::make('created_at')
                     ->label('Time')
                     ->dateTime('d M Y, H:i')
@@ -153,6 +151,36 @@ class ActivityLogResource extends Resource
                         ->pluck('subject_type', 'subject_type')
                         ->mapWithKeys(fn(string $type): array => [$type => class_basename($type)])
                         ->all()),
+                Filter::make('actor')
+                    ->schema([
+                        Forms\Components\Select::make('causer_id')
+                            ->label('Actor')
+                            ->searchable()
+                            ->getSearchResultsUsing(fn(string $search): array => User::query()
+                                ->where(function (Builder $query) use ($search): void {
+                                    $query
+                                        ->where('name', 'like', "%{$search}%")
+                                        ->orWhere('email', 'like', "%{$search}%");
+                                })
+                                ->orderBy('name')
+                                ->limit(50)
+                                ->get(['id', 'name', 'email'])
+                                ->mapWithKeys(fn(User $user): array => [
+                                    $user->id => $user->name ?: $user->email,
+                                ])
+                                ->all())
+                            ->getOptionLabelUsing(fn($value): ?string => User::query()
+                                ->whereKey($value)
+                                ->value('name')
+                                ?? User::query()->whereKey($value)->value('email')),
+                    ])
+                    ->query(fn(Builder $query, array $data): Builder => $query
+                        ->when(
+                            $data['causer_id'] ?? null,
+                            fn(Builder $query, int|string $causerId): Builder => $query
+                                ->where('causer_type', User::class)
+                                ->where('causer_id', $causerId)
+                        )),
                 Filter::make('created_at')
                     ->schema([
                         Forms\Components\DatePicker::make('created_from')

@@ -16,6 +16,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
+use Illuminate\Auth\Access\AuthorizationException;
 use Spatie\Activitylog\Models\Activity;
 use App\Support\AdminAccess;
 
@@ -99,6 +100,10 @@ class OrderResource extends Resource
 
     public static function updateStatus(Order $order, string $status): void
     {
+        if (! static::canEdit($order)) {
+            throw new AuthorizationException();
+        }
+
         if (! array_key_exists($status, static::statusOptions())) {
             throw new InvalidArgumentException("Unsupported order status [{$status}].");
         }
@@ -507,6 +512,7 @@ class OrderResource extends Resource
             ->action(function (Order $record) use ($status): void {
                 static::updateStatus($record, $status);
             })
+            ->authorize(fn(Order $record): bool => static::canEdit($record))
             ->successNotificationTitle(
                 'Order marked ' . strtolower(static::statusLabel($status))
             );

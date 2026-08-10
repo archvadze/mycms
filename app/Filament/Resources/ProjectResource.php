@@ -402,7 +402,8 @@ class ProjectResource extends Resource
             ->label('Mark ' . $status->label())
             ->icon('heroicon-o-arrow-path')
             ->color($status->color())
-            ->visible(fn(Project $record): bool => static::canTransitionStatus($record, $status->value))
+            ->authorize(fn(Project $record): bool => static::canEdit($record))
+            ->visible(fn(Project $record): bool => static::canEdit($record) && static::canTransitionStatus($record, $status->value))
             ->action(fn(Project $record) => static::updateStatus($record, $status->value))
             ->successNotificationTitle('Project marked ' . strtolower($status->label()));
     }

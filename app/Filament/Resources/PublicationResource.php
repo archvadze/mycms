@@ -13,6 +13,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use App\Support\AdminAccess;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class PublicationResource extends Resource
@@ -24,6 +26,11 @@ class PublicationResource extends Resource
     protected static ?int $navigationSort = 2;
 
     public static function canViewAny(): bool
+    {
+        return AdminAccess::canManageContent();
+    }
+
+    public static function canEdit(Model $record): bool
     {
         return AdminAccess::canManageContent();
     }
@@ -45,6 +52,10 @@ class PublicationResource extends Resource
 
     public static function setPublished(Publication $publication, bool $published): void
     {
+        if (! static::canEdit($publication)) {
+            throw new AuthorizationException();
+        }
+
         $publication->update([
             'is_published' => $published,
             'status' => $published ? 'published' : 'draft',
@@ -148,12 +159,14 @@ class PublicationResource extends Resource
                         ->label('Publish')
                         ->icon('heroicon-o-eye')
                         ->color('success')
+                        ->authorize(fn(Publication $record): bool => static::canEdit($record))
                         ->visible(fn(Publication $record): bool => ! $record->is_published)
                         ->action(fn(Publication $record) => static::setPublished($record, true)),
                     Actions\Action::make('unpublish')
                         ->label('Unpublish')
                         ->icon('heroicon-o-eye-slash')
                         ->color('warning')
+                        ->authorize(fn(Publication $record): bool => static::canEdit($record))
                         ->visible(fn(Publication $record): bool => (bool) $record->is_published)
                         ->action(fn(Publication $record) => static::setPublished($record, false)),
                     Actions\EditAction::make(),

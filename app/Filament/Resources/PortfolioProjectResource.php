@@ -14,6 +14,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use App\Support\AdminAccess;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class PortfolioProjectResource extends Resource
@@ -27,10 +29,20 @@ class PortfolioProjectResource extends Resource
     {
         return AdminAccess::canManageContent();
     }
+
+    public static function canEdit(Model $record): bool
+    {
+        return AdminAccess::canManageContent();
+    }
+
     protected static ?string $navigationLabel = 'Portfolio';
 
     public static function setPublished(PortfolioProject $project, bool $published): void
     {
+        if (! static::canEdit($project)) {
+            throw new AuthorizationException();
+        }
+
         $project->update(['is_published' => $published]);
     }
 
@@ -154,12 +166,14 @@ class PortfolioProjectResource extends Resource
                         ->label('Publish')
                         ->icon('heroicon-o-eye')
                         ->color('success')
+                        ->authorize(fn(PortfolioProject $record): bool => static::canEdit($record))
                         ->visible(fn(PortfolioProject $record): bool => ! $record->is_published)
                         ->action(fn(PortfolioProject $record) => static::setPublished($record, true)),
                     Actions\Action::make('unpublish')
                         ->label('Unpublish')
                         ->icon('heroicon-o-eye-slash')
                         ->color('warning')
+                        ->authorize(fn(PortfolioProject $record): bool => static::canEdit($record))
                         ->visible(fn(PortfolioProject $record): bool => (bool) $record->is_published)
                         ->action(fn(PortfolioProject $record) => static::setPublished($record, false)),
                     Actions\EditAction::make(),
