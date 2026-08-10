@@ -38,7 +38,7 @@ class AuditLogFormatter
 
     public static function changedFields(Activity $activity): string
     {
-        $properties = self::propertiesArray($activity);
+        $properties = self::changeSet($activity);
         $attributes = Arr::get($properties, 'attributes', []);
         $old = Arr::get($properties, 'old', []);
 
@@ -58,7 +58,10 @@ class AuditLogFormatter
 
     public static function sanitizedProperties(Activity $activity): array
     {
-        return self::sanitize(self::propertiesArray($activity));
+        return self::sanitize(array_replace_recursive(
+            self::changeSet($activity),
+            self::propertiesArray($activity)
+        ));
     }
 
     public static function subjectLabel(Activity $activity): string
@@ -140,5 +143,16 @@ class AuditLogFormatter
         }
 
         return is_array($properties) ? $properties : [];
+    }
+
+    private static function changeSet(Activity $activity): array
+    {
+        $changes = $activity->attribute_changes ?? [];
+
+        if ($changes instanceof Collection) {
+            return $changes->toArray();
+        }
+
+        return is_array($changes) ? $changes : [];
     }
 }

@@ -5,18 +5,16 @@ enum ProjectStatus: string
 {
     case Pending     = 'pending';
     case InProgress  = 'in_progress';
-    case OnHold      = 'on_hold';
+    case Review      = 'review';
     case Completed   = 'completed';
-    case Cancelled   = 'cancelled';
 
     public function label(): string
     {
         return match($this) {
             self::Pending    => 'Pending',
             self::InProgress => 'In Progress',
-            self::OnHold     => 'On Hold',
+            self::Review     => 'Review',
             self::Completed  => 'Completed',
-            self::Cancelled  => 'Cancelled',
         };
     }
 
@@ -25,9 +23,8 @@ enum ProjectStatus: string
         return match($this) {
             self::Pending    => 'warning',
             self::InProgress => 'info',
-            self::OnHold     => 'gray',
+            self::Review     => 'primary',
             self::Completed  => 'success',
-            self::Cancelled  => 'danger',
         };
     }
 }

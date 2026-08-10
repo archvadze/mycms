@@ -139,6 +139,7 @@ class AdminDashboardOverviewTest extends TestCase
         $this->assertSame([
             'Email Inbox',
             'Orders',
+            'Projects',
             'Site Settings',
             'Pages',
         ], $superAdminActions);

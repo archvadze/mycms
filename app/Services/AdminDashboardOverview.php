@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Filament\Resources\EmailMessageResource;
 use App\Filament\Resources\OrderResource;
 use App\Filament\Resources\PageResource;
+use App\Filament\Resources\ProjectResource;
 use App\Filament\Resources\SiteSettingResource;
 use App\Models\EmailMessage;
 use App\Models\EmailThread;
 use App\Models\Order;
+use App\Models\Project;
 use Illuminate\Database\Eloquent\Builder;
 
 class AdminDashboardOverview
@@ -35,6 +37,19 @@ class AdminDashboardOverview
         return [
             'pending_orders' => (int) ($counts['pending'] ?? 0),
             'total_orders' => (int) $counts->sum(),
+        ];
+    }
+
+    public function projectMetrics(): array
+    {
+        $counts = Project::query()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        return [
+            'active_projects' => (int) ($counts['in_progress'] ?? 0),
+            'total_projects' => (int) $counts->sum(),
         ];
     }
 
@@ -86,6 +101,12 @@ class AdminDashboardOverview
                 'description' => 'Recent requests and status follow-up',
                 'icon' => 'heroicon-o-shopping-bag',
                 'url' => OrderResource::getUrl(),
+            ] : null,
+            ProjectResource::canViewAny() ? [
+                'label' => 'Projects',
+                'description' => 'Client delivery and project status',
+                'icon' => 'heroicon-o-folder',
+                'url' => ProjectResource::getUrl(),
             ] : null,
             SiteSettingResource::canViewAny() ? [
                 'label' => 'Site Settings',

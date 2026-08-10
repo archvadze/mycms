@@ -3,6 +3,7 @@ namespace App\Filament\Widgets;
 
 use App\Filament\Resources\EmailMessageResource;
 use App\Filament\Resources\OrderResource;
+use App\Filament\Resources\ProjectResource;
 use App\Services\AdminDashboardOverview;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -13,7 +14,9 @@ class StatsOverviewWidget extends BaseWidget
 
     public static function canView(): bool
     {
-        return EmailMessageResource::canViewAny() || OrderResource::canViewAny();
+        return EmailMessageResource::canViewAny()
+            || OrderResource::canViewAny()
+            || ProjectResource::canViewAny();
     }
 
     protected function getStats(): array
@@ -59,6 +62,16 @@ class StatsOverviewWidget extends BaseWidget
                 ->descriptionIcon('heroicon-o-shopping-bag')
                 ->color('gray')
                 ->url(OrderResource::getUrl());
+        }
+
+        if (ProjectResource::canViewAny()) {
+            $projects = $overview->projectMetrics();
+
+            $stats[] = Stat::make('Active projects', $projects['active_projects'])
+                ->description('Projects in progress')
+                ->descriptionIcon('heroicon-o-folder')
+                ->color('info')
+                ->url(ProjectResource::getUrl());
         }
 
         return $stats;

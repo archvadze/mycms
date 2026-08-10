@@ -37,14 +37,7 @@ class OrderObserver
             );
         }
 
-        // % და _ სიმბოლოები escape-ი — LIKE injection-ის თავიდან ასაცილებლად
-        $safeDomain = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $order->domain);
-
-        $exists = Project::where('client_id', $client->id)
-            ->where('title', 'like', '%' . $safeDomain . '%')
-            ->exists();
-
-        if (!$exists) {
+        if (! Project::where('order_id', $order->id)->exists()) {
             Project::create([
                 'client_id'   => $client->id,
                 'order_id'    => $order->id,

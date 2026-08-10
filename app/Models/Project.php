@@ -5,9 +5,12 @@ use Illuminate\Database\Eloquent\Model;
 use App\Enums\ProjectStatus;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
+
 class Project extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
     protected $fillable = [
         'client_id',
         'order_id',
@@ -22,6 +25,25 @@ class Project extends Model
         'deadline' => 'date',
         'progress' => 'integer',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'client_id',
+                'order_id',
+                'title',
+                'status',
+                'progress',
+                'price',
+                'deadline',
+            ])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->setDescriptionForEvent(
+                fn(string $eventName): string => "Project #{$this->id} was {$eventName}"
+            );
+    }
     public function order(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(\App\Models\Order::class);
