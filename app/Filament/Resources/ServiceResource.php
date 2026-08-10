@@ -24,6 +24,14 @@ class ServiceResource extends Resource
         return auth()->user()?->hasRole(['Super Admin', 'Editor']);
     }
 
+    public static function setActive(Service $service, bool $active): void
+    {
+        $service->update([
+            'status' => $active,
+            'is_active' => $active,
+        ]);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema->schema([
@@ -50,6 +58,7 @@ class ServiceResource extends Resource
                 ->schema([
                     Forms\Components\FileUpload::make('image')
                         ->label('Service Image')->image()
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                         ->disk('public')->directory('services'),
                 ])->columns(2),
         ]);
@@ -64,13 +73,64 @@ class ServiceResource extends Resource
                 Tables\Columns\TextColumn::make('base_price')->money('USD'),
                 Tables\Columns\TextColumn::make('icon')->badge()->color('gray'),
                 Tables\Columns\IconColumn::make('status')->boolean(),
+                Tables\Columns\IconColumn::make('is_active')
+                    ->label('Active')
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->filters([
+                Tables\Filters\TernaryFilter::make('status')
+                    ->label('Visible'),
+                Tables\Filters\TernaryFilter::make('is_active')
+                    ->label('Active'),
+            ])
+            ->defaultSort('created_at', 'desc')
             ->actions([
-                Actions\EditAction::make(),
-                Actions\DeleteAction::make(),
+                Actions\ActionGroup::make([
+                    Actions\Action::make('preview')
+                        ->label('Preview')
+                        ->icon('heroicon-o-arrow-top-right-on-square')
+                        ->url(route('services'))
+                        ->openUrlInNewTab()
+                        ->visible(fn(Service $record): bool => (bool) $record->status),
+                    Actions\Action::make('activate')
+                        ->label('Activate')
+                        ->icon('heroicon-o-eye')
+                        ->color('success')
+                        ->visible(fn(Service $record): bool => ! $record->status)
+                        ->action(fn(Service $record) => static::setActive($record, true)),
+                    Actions\Action::make('deactivate')
+                        ->label('Deactivate')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('warning')
+                        ->visible(fn(Service $record): bool => (bool) $record->status)
+                        ->action(fn(Service $record) => static::setActive($record, false)),
+                    Actions\EditAction::make(),
+                    Actions\DeleteAction::make(),
+                ])->label('Actions')->icon('heroicon-m-ellipsis-vertical')->iconButton(),
             ])
             ->bulkActions([
-                Actions\BulkActionGroup::make([Actions\DeleteBulkAction::make()]),
+                Actions\BulkActionGroup::make([
+                    Actions\BulkAction::make('activate')
+                        ->label('Activate selected')
+                        ->icon('heroicon-o-eye')
+                        ->color('success')
+                        ->action(fn($records): mixed => $records->each(
+                            fn(Service $record) => static::setActive($record, true)
+                        )),
+                    Actions\BulkAction::make('deactivate')
+                        ->label('Deactivate selected')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('warning')
+                        ->action(fn($records): mixed => $records->each(
+                            fn(Service $record) => static::setActive($record, false)
+                        )),
+                    Actions\DeleteBulkAction::make(),
+                ]),
             ]);
     }
 

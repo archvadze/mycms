@@ -53,10 +53,17 @@ class FeatureResource extends Resource
                 Tables\Columns\TextColumn::make('price')->money('USD'),
                 Tables\Columns\TextColumn::make('description')->limit(40)
                     ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('created_at', 'desc')
             ->actions([
-                Actions\EditAction::make(),
-                Actions\DeleteAction::make(),
+                Actions\ActionGroup::make([
+                    Actions\EditAction::make(),
+                    Actions\DeleteAction::make(),
+                ])->label('Actions')->icon('heroicon-m-ellipsis-vertical')->iconButton(),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([Actions\DeleteBulkAction::make()]),

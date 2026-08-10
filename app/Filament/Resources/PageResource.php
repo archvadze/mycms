@@ -24,6 +24,42 @@ class PageResource extends Resource
         return auth()->user()?->hasRole('Super Admin');
     }
 
+    public static function statusOptions(): array
+    {
+        return ['draft' => 'Draft', 'published' => 'Published'];
+    }
+
+    public static function statusColor(?string $status): string
+    {
+        return match ($status) {
+            'published' => 'success',
+            'draft' => 'warning',
+            default => 'gray',
+        };
+    }
+
+    public static function setPublished(Page $page, bool $published): void
+    {
+        $page->update(['status' => $published ? 'published' : 'draft']);
+    }
+
+    public static function previewUrl(Page $page): ?string
+    {
+        return match ($page->slug) {
+            'home' => route('home'),
+            'about' => route('about'),
+            'contact' => route('contact'),
+            'privacy-policy' => route('privacy-policy'),
+            'terms' => route('terms'),
+            'services' => route('services'),
+            'portfolio' => route('portfolio'),
+            'blog' => route('blog'),
+            'guides' => route('guides'),
+            'shop' => route('shop.index'),
+            default => route('page.show', $page->slug),
+        };
+    }
+
     public static function form(Schema $schema): Schema
     {
         $record = $schema->getRecord();
@@ -53,7 +89,7 @@ class PageResource extends Resource
                     ->maxLength(255)
                     ->disabled(fn ($record) => $record?->slug !== null),
                 Forms\Components\Select::make('status')
-                    ->options(['draft' => 'Draft', 'published' => 'Published'])
+                    ->options(static::statusOptions())
                     ->default('published')
                     ->required(),
             ])->columns(3);
@@ -216,6 +252,7 @@ class PageResource extends Resource
                         ->columnSpanFull(),
                     Forms\Components\FileUpload::make('hero_image')
                         ->image()
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                         ->disk('public')
                         ->directory('pages')
                         ->label('Hero Image')
@@ -244,20 +281,55 @@ class PageResource extends Resource
                 Tables\Columns\TextColumn::make('slug')->badge()->color('gray'),
                 Tables\Columns\TextColumn::make('page_title')->label('Page Title')->searchable(),
                 Tables\Columns\TextColumn::make('status')->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'published' => 'success',
-                        'draft' => 'warning',
-                        default => 'gray',
-                    }),
+                    ->color(fn (?string $state): string => static::statusColor($state)),
                 Tables\Columns\TextColumn::make('updated_at')->dateTime()->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('status')
+                    ->options(static::statusOptions()),
+            ])
+            ->defaultSort('updated_at', 'desc')
             ->actions([
-                Actions\EditAction::make(),
-                Actions\DeleteAction::make(),
+                Actions\ActionGroup::make([
+                    Actions\Action::make('preview')
+                        ->label('Preview')
+                        ->icon('heroicon-o-arrow-top-right-on-square')
+                        ->url(fn(Page $record): ?string => static::previewUrl($record))
+                        ->openUrlInNewTab()
+                        ->visible(fn(Page $record): bool => $record->status === 'published'),
+                    Actions\Action::make('publish')
+                        ->label('Publish')
+                        ->icon('heroicon-o-eye')
+                        ->color('success')
+                        ->visible(fn(Page $record): bool => $record->status !== 'published')
+                        ->action(fn(Page $record) => static::setPublished($record, true)),
+                    Actions\Action::make('unpublish')
+                        ->label('Unpublish')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('warning')
+                        ->visible(fn(Page $record): bool => $record->status === 'published')
+                        ->action(fn(Page $record) => static::setPublished($record, false)),
+                    Actions\EditAction::make(),
+                    Actions\DeleteAction::make(),
+                ])->label('Actions')->icon('heroicon-m-ellipsis-vertical')->iconButton(),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
+                    Actions\BulkAction::make('publish')
+                        ->label('Publish selected')
+                        ->icon('heroicon-o-eye')
+                        ->color('success')
+                        ->action(fn($records): mixed => $records->each(
+                            fn(Page $record) => static::setPublished($record, true)
+                        )),
+                    Actions\BulkAction::make('unpublish')
+                        ->label('Unpublish selected')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('warning')
+                        ->action(fn($records): mixed => $records->each(
+                            fn(Page $record) => static::setPublished($record, false)
+                        )),
                     Actions\DeleteBulkAction::make(),
                 ]),
             ]);

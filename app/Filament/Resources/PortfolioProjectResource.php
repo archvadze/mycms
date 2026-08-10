@@ -4,13 +4,16 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\PortfolioProjectResource\Pages;
 use App\Models\PortfolioProject;
-use Filament\Forms;
 use Filament\Actions;
+use Filament\Forms;
 use Filament\Resources\Resource;
-use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 
 class PortfolioProjectResource extends Resource
 {
@@ -25,6 +28,11 @@ class PortfolioProjectResource extends Resource
     }
     protected static ?string $navigationLabel = 'Portfolio';
 
+    public static function setPublished(PortfolioProject $project, bool $published): void
+    {
+        $project->update(['is_published' => $published]);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema->schema([
@@ -35,9 +43,11 @@ class PortfolioProjectResource extends Resource
                         ->required()
                         ->maxLength(255)
                         ->live(onBlur: true)
-                        ->afterStateUpdated(fn ($state, callable $set) =>
-                            $set('slug', \Illuminate\Support\Str::slug($state))
-                        ),
+                        ->afterStateUpdated(function (?string $state, Set $set, Get $get): void {
+                            if (blank($get('slug'))) {
+                                $set('slug', Str::slug($state));
+                            }
+                        }),
                     Forms\Components\TextInput::make('slug')
                         ->maxLength(255)
                         ->unique(ignoreRecord: true),
@@ -66,6 +76,7 @@ class PortfolioProjectResource extends Resource
                     Forms\Components\FileUpload::make('cover_image')
                         ->label('Cover Image')
                         ->image()
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                         ->disk('public')->directory('portfolio')
                         ->imageResizeMode('cover')
                         ->imageCropAspectRatio('16:9')
@@ -107,6 +118,11 @@ class PortfolioProjectResource extends Resource
                 Tables\Columns\TextColumn::make('title')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('slug')
+                    ->badge()
+                    ->color('gray')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('client.name')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('project_type')
@@ -119,14 +135,52 @@ class PortfolioProjectResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_featured')->boolean(),
                 Tables\Columns\IconColumn::make('is_published')->boolean(),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                Tables\Filters\TernaryFilter::make('is_published')
+                    ->label('Published'),
+                Tables\Filters\TernaryFilter::make('is_featured')
+                    ->label('Featured'),
             ])
             ->defaultSort('created_at', 'desc')
             ->actions([
-                Actions\EditAction::make(),
-                Actions\DeleteAction::make(),
+                Actions\ActionGroup::make([
+                    Actions\Action::make('publish')
+                        ->label('Publish')
+                        ->icon('heroicon-o-eye')
+                        ->color('success')
+                        ->visible(fn(PortfolioProject $record): bool => ! $record->is_published)
+                        ->action(fn(PortfolioProject $record) => static::setPublished($record, true)),
+                    Actions\Action::make('unpublish')
+                        ->label('Unpublish')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('warning')
+                        ->visible(fn(PortfolioProject $record): bool => (bool) $record->is_published)
+                        ->action(fn(PortfolioProject $record) => static::setPublished($record, false)),
+                    Actions\EditAction::make(),
+                    Actions\DeleteAction::make(),
+                ])->label('Actions')->icon('heroicon-m-ellipsis-vertical')->iconButton(),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
+                    Actions\BulkAction::make('publish')
+                        ->label('Publish selected')
+                        ->icon('heroicon-o-eye')
+                        ->color('success')
+                        ->action(fn($records): mixed => $records->each(
+                            fn(PortfolioProject $record) => static::setPublished($record, true)
+                        )),
+                    Actions\BulkAction::make('unpublish')
+                        ->label('Unpublish selected')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('warning')
+                        ->action(fn($records): mixed => $records->each(
+                            fn(PortfolioProject $record) => static::setPublished($record, false)
+                        )),
                     Actions\DeleteBulkAction::make(),
                 ]),
             ]);

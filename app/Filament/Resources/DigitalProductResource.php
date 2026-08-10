@@ -4,13 +4,16 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\DigitalProductResource\Pages;
 use App\Models\DigitalProduct;
-use Filament\Forms;
 use Filament\Actions;
+use Filament\Forms;
 use Filament\Resources\Resource;
-use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 
 class DigitalProductResource extends Resource
 {
@@ -26,6 +29,11 @@ class DigitalProductResource extends Resource
         return auth()->user()?->hasRole(['Super Admin', 'Admin', 'Editor']);
     }
 
+    public static function setPublished(DigitalProduct $product, bool $published): void
+    {
+        $product->update(['is_published' => $published]);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema->schema([
@@ -36,9 +44,11 @@ class DigitalProductResource extends Resource
                         ->required()
                         ->maxLength(255)
                         ->live(onBlur: true)
-                        ->afterStateUpdated(fn ($state, callable $set) =>
-                            $set('slug', \Illuminate\Support\Str::slug($state))
-                        ),
+                        ->afterStateUpdated(function (?string $state, Set $set, Get $get): void {
+                            if (blank($get('slug'))) {
+                                $set('slug', Str::slug($state));
+                            }
+                        }),
                     Forms\Components\TextInput::make('slug')
                         ->required()
                         ->maxLength(255)
@@ -76,6 +86,7 @@ class DigitalProductResource extends Resource
                     Forms\Components\FileUpload::make('image')
                         ->label('Cover Image')
                         ->image()
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                         ->disk('public')
                         ->directory('products/covers')
                         ->imageResizeMode('cover')
@@ -89,6 +100,7 @@ class DigitalProductResource extends Resource
                     Forms\Components\FileUpload::make('gallery_images')
                         ->label('Gallery Images')
                         ->image()
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                         ->multiple()
                         ->disk('public')
                         ->directory('products/gallery')
@@ -139,6 +151,11 @@ class DigitalProductResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('slug')
+                    ->badge()
+                    ->color('gray')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('category')
                     ->badge()
                     ->color('gray'),
@@ -147,14 +164,68 @@ class DigitalProductResource extends Resource
                     ->sortable(),
                 Tables\Columns\IconColumn::make('is_published')->boolean(),
                 Tables\Columns\IconColumn::make('is_featured')->boolean(),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                Tables\Filters\TernaryFilter::make('is_published')
+                    ->label('Published'),
+                Tables\Filters\TernaryFilter::make('is_featured')
+                    ->label('Featured'),
+                Tables\Filters\SelectFilter::make('category')
+                    ->options([
+                        'wordpress-themes'   => 'WordPress Themes',
+                        'wordpress-plugins'  => 'WordPress Plugins',
+                        'ui-kits'            => 'UI Kits',
+                        'templates'          => 'Templates',
+                        'scripts'            => 'Scripts',
+                        'graphics'           => 'Graphics',
+                        'other'              => 'Other',
+                    ]),
             ])
             ->defaultSort('created_at', 'desc')
             ->actions([
-                Actions\EditAction::make(),
-                Actions\DeleteAction::make(),
+                Actions\ActionGroup::make([
+                    Actions\Action::make('preview')
+                        ->label('Preview')
+                        ->icon('heroicon-o-arrow-top-right-on-square')
+                        ->url(fn(DigitalProduct $record): string => route('shop.show', $record->slug))
+                        ->openUrlInNewTab()
+                        ->visible(fn(DigitalProduct $record): bool => (bool) $record->is_published),
+                    Actions\Action::make('publish')
+                        ->label('Publish')
+                        ->icon('heroicon-o-eye')
+                        ->color('success')
+                        ->visible(fn(DigitalProduct $record): bool => ! $record->is_published)
+                        ->action(fn(DigitalProduct $record) => static::setPublished($record, true)),
+                    Actions\Action::make('unpublish')
+                        ->label('Unpublish')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('warning')
+                        ->visible(fn(DigitalProduct $record): bool => (bool) $record->is_published)
+                        ->action(fn(DigitalProduct $record) => static::setPublished($record, false)),
+                    Actions\EditAction::make(),
+                    Actions\DeleteAction::make(),
+                ])->label('Actions')->icon('heroicon-m-ellipsis-vertical')->iconButton(),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
+                    Actions\BulkAction::make('publish')
+                        ->label('Publish selected')
+                        ->icon('heroicon-o-eye')
+                        ->color('success')
+                        ->action(fn($records): mixed => $records->each(
+                            fn(DigitalProduct $record) => static::setPublished($record, true)
+                        )),
+                    Actions\BulkAction::make('unpublish')
+                        ->label('Unpublish selected')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('warning')
+                        ->action(fn($records): mixed => $records->each(
+                            fn(DigitalProduct $record) => static::setPublished($record, false)
+                        )),
                     Actions\DeleteBulkAction::make(),
                 ]),
             ]);

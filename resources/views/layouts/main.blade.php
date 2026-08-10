@@ -5,15 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    @php
+        $defaultSeoDescription = 'Professional web design and development services';
+        $configuredSeoDescription = data_get($siteSettings, 'seo_default_description');
+        $seoDescription = filled($configuredSeoDescription) ? $configuredSeoDescription : $defaultSeoDescription;
+    @endphp
+
     <title>{{ $title ?? config('app.name', 'Laravel') }}</title>
-    <meta name="description" content="{{ $description ?? 'Professional web design and development services' }}">
+    <meta name="description" content="{{ $description ?? $seoDescription }}">
     <meta name="keywords" content="{{ $keywords ?? 'web development, web design, SEO, e-commerce, Georgia, Tbilisi' }}">
     <meta name="author" content="{{ data_get($siteSettings, 'site_name', 'Archvadze') }}">
     <meta name="robots" content="index, follow">
 
     {{-- Open Graph --}}
     <meta property="og:title" content="{{ $title ?? config('app.name') }}">
-    <meta property="og:description" content="{{ $description ?? 'Professional web design and development services' }}">
+    <meta property="og:description" content="{{ $description ?? $seoDescription }}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:site_name" content="{{ data_get($siteSettings, 'site_name', 'Archvadze') }}">
@@ -24,7 +30,7 @@
     {{-- Twitter Card --}}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ $title ?? config('app.name') }}">
-    <meta name="twitter:description" content="{{ $description ?? 'Professional web design and development services' }}">
+    <meta name="twitter:description" content="{{ $description ?? $seoDescription }}">
 
     {{-- Canonical --}}
     <link rel="canonical" href="{{ url()->current() }}">
@@ -235,7 +241,13 @@
 
             {{-- Bottom Bar --}}
             <div class="pt-6 border-t border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <p class="text-sm text-gray-500">© {{ date('Y') }} {{ data_get($siteSettings, 'site_name', 'archvadze') }}. All rights reserved.</p>
+                @php
+                    $configuredCopyrightText = data_get($siteSettings, 'copyright_text');
+                    $copyrightText = filled($configuredCopyrightText)
+                        ? $configuredCopyrightText
+                        : '© {year} ' . data_get($siteSettings, 'site_name', 'archvadze') . '. All rights reserved.';
+                @endphp
+                <p class="text-sm text-gray-500">{{ str_replace('{year}', date('Y'), $copyrightText) }}</p>
                 <div class="flex gap-6">
                     @foreach($bottomMenuItems as $item)
                     <a href="{{ $item->url }}" class="text-sm text-gray-500 hover:text-white transition-colors">

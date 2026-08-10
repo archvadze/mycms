@@ -162,7 +162,9 @@ public function checkout(string $slug)
 
 public function checkoutSuccess(Request $request, string $slug)
 {
-    $product = DigitalProduct::where('slug', $slug)->firstOrFail();
+    $product = DigitalProduct::where('slug', $slug)
+        ->where('is_published', true)
+        ->firstOrFail();
     $versionId = session('shop_version_id');
 
     if (!$versionId || !$request->token) {

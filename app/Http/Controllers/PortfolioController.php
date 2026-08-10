@@ -11,7 +11,10 @@ class PortfolioController extends Controller
     public function index()
     {
         $page = \App\Models\Page::where('slug', 'portfolio')->first();
-        $projects = PortfolioProject::with('images')->orderBy('completed_at', 'desc')->paginate($page->items_count ?? 9);
+        $projects = PortfolioProject::with('images')
+            ->where('is_published', true)
+            ->orderBy('completed_at', 'desc')
+            ->paginate($page->items_count ?? 9);
 
         return view('portfolio', compact('projects', 'page'));
     }

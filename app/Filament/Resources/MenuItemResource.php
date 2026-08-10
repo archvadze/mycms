@@ -24,6 +24,11 @@ class MenuItemResource extends Resource
         return auth()->user()?->hasRole('Super Admin');
     }
 
+    public static function setActive(MenuItem $menuItem, bool $active): void
+    {
+        $menuItem->update(['is_active' => $active]);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema->schema([
@@ -56,21 +61,70 @@ class MenuItemResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('position')->sortable()->width(60),
                 Tables\Columns\TextColumn::make('label')->searchable(),
-                Tables\Columns\TextColumn::make('url')->limit(40),
+                Tables\Columns\TextColumn::make('url')->searchable()->limit(40),
                 Tables\Columns\TextColumn::make('location')->badge()
                     ->color(fn($state) => match($state) {
                         'header' => 'info', 'footer' => 'gray', 'bottom' => 'warning', default => 'gray'
                     }),
                 Tables\Columns\IconColumn::make('is_active')->boolean(),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('location')
+                    ->options([
+                        'header' => 'Header Navigation',
+                        'footer' => 'Footer Quick Links',
+                        'bottom' => 'Footer Bottom Bar',
+                    ]),
+                Tables\Filters\TernaryFilter::make('is_active')
+                    ->label('Active'),
             ])
             ->defaultSort('position')
             ->reorderable('position')
             ->actions([
-                Actions\EditAction::make(),
-                Actions\DeleteAction::make(),
+                Actions\ActionGroup::make([
+                    Actions\Action::make('open')
+                        ->label('Open')
+                        ->icon('heroicon-o-arrow-top-right-on-square')
+                        ->url(fn(MenuItem $record): string => url($record->url))
+                        ->openUrlInNewTab(),
+                    Actions\Action::make('activate')
+                        ->label('Activate')
+                        ->icon('heroicon-o-eye')
+                        ->color('success')
+                        ->visible(fn(MenuItem $record): bool => ! $record->is_active)
+                        ->action(fn(MenuItem $record) => static::setActive($record, true)),
+                    Actions\Action::make('deactivate')
+                        ->label('Deactivate')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('warning')
+                        ->visible(fn(MenuItem $record): bool => (bool) $record->is_active)
+                        ->action(fn(MenuItem $record) => static::setActive($record, false)),
+                    Actions\EditAction::make(),
+                    Actions\DeleteAction::make(),
+                ])->label('Actions')->icon('heroicon-m-ellipsis-vertical')->iconButton(),
             ])
             ->bulkActions([
-                Actions\BulkActionGroup::make([Actions\DeleteBulkAction::make()]),
+                Actions\BulkActionGroup::make([
+                    Actions\BulkAction::make('activate')
+                        ->label('Activate selected')
+                        ->icon('heroicon-o-eye')
+                        ->color('success')
+                        ->action(fn($records): mixed => $records->each(
+                            fn(MenuItem $record) => static::setActive($record, true)
+                        )),
+                    Actions\BulkAction::make('deactivate')
+                        ->label('Deactivate selected')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('warning')
+                        ->action(fn($records): mixed => $records->each(
+                            fn(MenuItem $record) => static::setActive($record, false)
+                        )),
+                    Actions\DeleteBulkAction::make(),
+                ]),
             ]);
     }
 

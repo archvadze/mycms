@@ -11,6 +11,7 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Cache;
 
 class ManageSettings extends Page implements HasForms
 {
@@ -49,40 +50,37 @@ class ManageSettings extends Page implements HasForms
             ->schema([
                 Section::make('General')
                     ->schema([
+                        Forms\Components\TextInput::make('site_name')
+                            ->label('Site Name')
+                            ->placeholder(config('agency.name'))
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('site_url')
+                            ->label('Site URL')
+                            ->placeholder(config('agency.url'))
+                            ->url()
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('color_primary')
+                            ->label('Primary Color (HSL)')
+                            ->placeholder('221 83% 53%')
+                            ->helperText('HSL format: H S% L%')
+                            ->suffixIcon('heroicon-o-swatch'),
+                    ])->columns(2),
+
+                Section::make('Branding')
+                    ->schema([
                         Forms\Components\FileUpload::make('site_logo')
                             ->label('Site Logo')
                             ->image()
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'])
                             ->disk('public')
                             ->directory('logo')
                             ->imageResizeMode('contain')
                             ->imageResizeTargetHeight('80')
                             ->helperText('Header და Footer-ში გამოჩნდება. სიმაღლე: 40px')
                             ->columnSpanFull(),
-                        Forms\Components\TextInput::make('site_name')
-                            ->label('Site Name')->maxLength(255),
-                        Forms\Components\TextInput::make('site_url')
-                            ->label('Site URL')
-                            ->placeholder(config('agency.url'))
-                            ->url()->maxLength(255),
-                        Forms\Components\TextInput::make('site_email')
-                            ->label('Email')->email()->maxLength(255),
-                        Forms\Components\TextInput::make('site_phone')
-                            ->label('Phone')->maxLength(255),
                         Forms\Components\Textarea::make('footer_tagline')
                             ->label('Footer Tagline')->rows(2)->columnSpanFull(),
-                        Forms\Components\Textarea::make('google_analytics')
-                            ->label('Google Analytics Code')
-                            ->placeholder('<!-- Google tag (gtag.js) ... -->')
-                            ->rows(4)
-                            ->columnSpanFull()
-                            ->helperText('Google Analytics-ის სრული script კოდი'),
-                        Forms\Components\Textarea::make('head_scripts')
-                            ->label('Head Scripts / Verification Codes')
-                            ->placeholder('<!-- Google Search Console, Bing, etc. verification meta tags or scripts -->')
-                            ->rows(4)
-                            ->columnSpanFull()
-                            ->helperText('Google Search Console, Bing Webmaster, Facebook Domain Verification და სხვა კოდები'),
-                    ])->columns(2),
+                    ]),
 
                 Section::make('Mail')
                     ->description('Configure the mailbox identity used for sending and receiving email.')
@@ -127,6 +125,10 @@ class ManageSettings extends Page implements HasForms
 
                 Section::make('Contact & Location')
                     ->schema([
+                        Forms\Components\TextInput::make('site_email')
+                            ->label('Public Email')->email()->maxLength(255),
+                        Forms\Components\TextInput::make('site_phone')
+                            ->label('Phone')->maxLength(255),
                         Forms\Components\Textarea::make('contact_address')
                             ->label('Address')->rows(2),
                         Forms\Components\TextInput::make('working_hours')
@@ -137,15 +139,29 @@ class ManageSettings extends Page implements HasForms
                             ->rows(3)->columnSpanFull(),
                     ])->columns(2),
 
-                Section::make('Colors & Theme')
+                Section::make('SEO & Analytics')
                     ->schema([
-                        Forms\Components\TextInput::make('color_primary')
-                            ->label('Primary Color (HSL)')
-                            ->placeholder('221 83% 53%')
-                            ->helperText('HSL format: H S% L% — მაგ: 221 83% 53% (ლურჯი), 142 76% 36% (მწვანე), 0 84% 60% (წითელი)')
-                            ->suffixIcon('heroicon-o-swatch'),
-
-                    ])->columns(2),
+                        Forms\Components\TextInput::make('seo_default_title')
+                            ->label('Default SEO Title')
+                            ->placeholder(config('agency.seo.title_suffix'))
+                            ->maxLength(255),
+                        Forms\Components\Textarea::make('seo_default_description')
+                            ->label('Default SEO Description')
+                            ->rows(2)
+                            ->maxLength(500),
+                        Forms\Components\Textarea::make('google_analytics')
+                            ->label('Google Analytics Code')
+                            ->placeholder('<!-- Google tag (gtag.js) ... -->')
+                            ->rows(4)
+                            ->columnSpanFull()
+                            ->helperText('Google Analytics-ის სრული script კოდი'),
+                        Forms\Components\Textarea::make('head_scripts')
+                            ->label('Head Scripts / Verification Codes')
+                            ->placeholder('<!-- Google Search Console, Bing, etc. verification meta tags or scripts -->')
+                            ->rows(4)
+                            ->columnSpanFull()
+                            ->helperText('Google Search Console, Bing Webmaster, Facebook Domain Verification და სხვა კოდები'),
+                    ])->columns(2)->collapsed(),
 
                 Section::make('Modules')
                     ->description('Enable/disable sections and customize their display names')
@@ -211,6 +227,15 @@ class ManageSettings extends Page implements HasForms
                         Forms\Components\TextInput::make('social_linkedin')
                             ->label('LinkedIn')->url()->maxLength(255),
                     ])->columns(2),
+
+                Section::make('Legal')
+                    ->schema([
+                        Forms\Components\TextInput::make('copyright_text')
+                            ->label('Copyright Text')
+                            ->placeholder('© {year} ' . config('agency.name') . '. All rights reserved.')
+                            ->maxLength(255)
+                            ->helperText('Use {year} to insert the current year.'),
+                    ])->columns(1)->collapsed(),
             ])
             ->statePath('data');
     }
@@ -244,7 +269,8 @@ class ManageSettings extends Page implements HasForms
         }
 
         // Menu cache გავასუფთავოთ
-        \Illuminate\Support\Facades\Cache::forget('menu.items');
+        Cache::forget('site.settings');
+        Cache::forget('menu.items');
 
         app(MailSettings::class)->clearCache();
 
