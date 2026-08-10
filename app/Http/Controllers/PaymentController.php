@@ -1,21 +1,21 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Support\ClientPortalAccess;
 use App\Models\Order;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Srmklive\PayPal\Services\PayPal as PayPalClient;
 
 class PaymentController extends Controller
 {
+    public function __construct(private ClientPortalAccess $portalAccess) {}
+
     public function createPayment(Request $request, $orderId)
     {
-        $order = Order::with('services', 'features')
-             ->whereHas('client', function ($query) {
-           $query->where('user_id', auth()->id());
-             })
-          ->findOrFail($orderId);
+        $order = $this->portalAccess->ownedOrderOrFail($orderId);
 
-        $provider = new PayPalClient;
+        $provider = app(PayPalClient::class);
         $provider->setApiCredentials(config('paypal'));
         $token = @$provider->getAccessToken();
         $provider->setAccessToken($token);
@@ -42,7 +42,12 @@ class PaymentController extends Controller
 
         $response = $provider->createOrder($orderData);
 
-        \Log::info('PayPal Response:', $response);
+        Log::info('PayPal create order completed.', [
+            'operation' => 'create_order',
+            'order_id' => $order->id,
+            'provider_status' => $response['status'] ?? null,
+            'provider_order_id' => $response['id'] ?? null,
+        ]);
 
         if (isset($response['id']) && $response['status'] === 'CREATED') {
             foreach ($response['links'] as $link) {
@@ -52,26 +57,33 @@ class PaymentController extends Controller
             }
         }
 
-        \Log::error('PayPal Error:', $response);
-        return back()->with('error', 'Payment failed: ' . json_encode($response));
+        Log::warning('PayPal create order failed.', [
+            'operation' => 'create_order',
+            'order_id' => $order->id,
+            'provider_status' => $response['status'] ?? null,
+            'provider_order_id' => $response['id'] ?? null,
+        ]);
+
+        return back()->with('error', 'Payment could not be started. Please try again.');
     }
 
 public function paymentSuccess(Request $request, $orderId)
 {
-    $order = Order::where('id', $orderId)
-        ->whereHas('client', function ($query) {
-            $query->where('user_id', auth()->id());
-        })
-        ->firstOrFail();
+    $order = $this->portalAccess->ownedOrderOrFail($orderId);
 
-    $provider = new PayPalClient;
+    if ($order->payment_status === 'paid' && filled($order->payment_id)) {
+        return redirect()->route('order.success', $order->id)
+            ->with('success', 'Payment completed successfully!');
+    }
+
+    $provider = app(PayPalClient::class);
     $provider->setApiCredentials(config('paypal'));
     $token = @$provider->getAccessToken();
     $provider->setAccessToken($token);
 
     $response = $provider->capturePaymentOrder($request->token);
 
-    if (isset($response['status']) && $response['status'] === 'COMPLETED') {
+    if ($this->captureMatchesOrder($response, $order)) {
         $order->update([
             'status'         => 'accepted',
             'payment_status' => 'paid',
@@ -83,19 +95,47 @@ public function paymentSuccess(Request $request, $orderId)
             ->with('success', 'Payment completed successfully!');
     }
 
+    Log::warning('PayPal capture did not match local order.', [
+        'operation' => 'capture_order',
+        'order_id' => $order->id,
+        'provider_status' => $response['status'] ?? null,
+        'provider_order_id' => $response['id'] ?? null,
+    ]);
+
     return redirect()->route('payment.cancel', $orderId)
         ->with('error', 'Payment could not be completed.');
 }
 
 public function paymentCancel($orderId)
 {
-    Order::where('id', $orderId)
-        ->whereHas('client', function ($query) {
-            $query->where('user_id', auth()->id());
-        })
-        ->firstOrFail();
+    $this->portalAccess->ownedOrderOrFail($orderId);
 
     return redirect()->route('order.success', $orderId)
         ->with('warning', 'Payment was cancelled. You can try again later.');
+}
+
+public static function captureMatchesOrder(array $response, Order $order): bool
+{
+    if (($response['status'] ?? null) !== 'COMPLETED') {
+        return false;
+    }
+
+    $expectedReference = 'ORDER-' . $order->id;
+    $expectedAmount = number_format($order->price_estimate, 2, '.', '');
+
+    foreach (($response['purchase_units'] ?? []) as $unit) {
+        $reference = $unit['reference_id'] ?? null;
+        $amount = $unit['payments']['captures'][0]['amount'] ?? $unit['amount'] ?? [];
+
+        if (
+            $reference === $expectedReference
+            && ($amount['currency_code'] ?? null) === 'USD'
+            && (string) ($amount['value'] ?? '') === $expectedAmount
+        ) {
+            return true;
+        }
+    }
+
+    return false;
 }
 }

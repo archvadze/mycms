@@ -7,12 +7,16 @@ use App\Models\Page;
 use App\Models\DigitalProductVersion;
 use App\Models\Purchase;
 use App\Mail\PurchaseConfirmationMail;
+use App\Support\ClientPortalAccess;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Srmklive\PayPal\Services\PayPal as PayPalClient;
 
 class ShopController extends Controller
 {
+    public function __construct(private ClientPortalAccess $portalAccess) {}
+
     public function index(Request $request)
     {
         $query = DigitalProduct::where('is_published', true);
@@ -57,9 +61,7 @@ class ShopController extends Controller
 
 public function download(Purchase $purchase)
 {
-    if ($purchase->user_id !== auth()->id()) {
-        abort(403);
-    }
+    $purchase = $this->portalAccess->ownedPurchaseOrFail($purchase->id);
 
     if ($purchase->download_limit <= 0) {
         return redirect()->back()->with('error', 'Download limit reached.');
@@ -69,40 +71,55 @@ public function download(Purchase $purchase)
         return redirect()->back()->with('error', 'Download access has expired.');
     }
 
-    $filePath = storage_path('app/public/' . $purchase->version->file_path);
-
-    if (!file_exists($filePath)) {
-        return redirect()->back()->with('error', 'File not found. Please contact support.');
+    if (! $purchase->version || ! $purchase->version->product) {
+        abort(404);
     }
 
-    // Log download
+    if (! Storage::disk('public')->exists($purchase->version->file_path)) {
+        abort(404);
+    }
+
+    $decremented = Purchase::whereKey($purchase->id)
+        ->where('download_limit', '>', 0)
+        ->decrement('download_limit');
+
+    if ($decremented !== 1) {
+        return redirect()->back()->with('error', 'Download limit reached.');
+    }
+
     \App\Models\DownloadLog::create([
         'purchase_id'    => $purchase->id,
-        'user_id'        => auth()->id(),
+        'user_id'        => $this->portalAccess->currentClientUser()->id,
         'product_name'   => $purchase->version->product->name,
         'version_number' => $purchase->version->version_number,
         'ip_address'     => request()->ip(),
     ]);
 
-    $purchase->decrement('download_limit');
-
     $extension = pathinfo($purchase->version->file_path, PATHINFO_EXTENSION);
 
-$safeProductName = preg_replace(
-    '/[^A-Za-z0-9_-]+/',
-    '_',
-    $purchase->version->product->name
-);
+    $safeProductName = preg_replace(
+        '/[^A-Za-z0-9_-]+/',
+        '_',
+        $purchase->version->product->name
+    );
 
-$downloadName = $safeProductName
-    . '_v'
-    . $purchase->version->version_number
-    . ($extension ? '.' . $extension : '');
+    $safeVersion = preg_replace(
+        '/[^A-Za-z0-9._-]+/',
+        '_',
+        $purchase->version->version_number
+    );
 
-return response()->download($filePath, $downloadName);
+    $downloadName = $safeProductName
+        . '_v'
+        . $safeVersion
+        . ($extension ? '.' . $extension : '');
+
+    return Storage::disk('public')->download($purchase->version->file_path, $downloadName);
 }
 public function checkout(string $slug)
 {
+    $this->portalAccess->currentClientUser();
+
     $product = DigitalProduct::where('slug', $slug)
         ->where('is_published', true)
         ->with(['versions' => fn($q) => $q->where('is_active', true)->latest()])
@@ -162,6 +179,8 @@ public function checkout(string $slug)
 
 public function checkoutSuccess(Request $request, string $slug)
 {
+    $user = $this->portalAccess->currentClientUser();
+
     $product = DigitalProduct::where('slug', $slug)
         ->where('is_published', true)
         ->firstOrFail();
@@ -171,6 +190,10 @@ public function checkoutSuccess(Request $request, string $slug)
         return redirect()->route('shop.show', $slug)->with('error', 'Invalid session.');
     }
 
+    $version = DigitalProductVersion::query()
+        ->where('digital_product_id', $product->id)
+        ->findOrFail($versionId);
+
     $provider = new PayPalClient;
     $provider->setApiCredentials(config('paypal'));
     $token = @$provider->getAccessToken();
@@ -179,9 +202,22 @@ public function checkoutSuccess(Request $request, string $slug)
     $response = $provider->capturePaymentOrder($request->token);
 
     if (isset($response['status']) && $response['status'] === 'COMPLETED') {
+        $purchase = Purchase::where('transaction_id', $response['id'])->first();
+
+        if ($purchase) {
+            if ((int) $purchase->user_id !== (int) $user->id) {
+                abort(403);
+            }
+
+            session()->forget('shop_version_id');
+
+            return redirect()->route('shop.show', $slug)
+                ->with('success', 'Purchase completed! You can now download the product.');
+        }
+
         $purchase = Purchase::create([
-            'user_id'                    => auth()->id(),
-            'digital_product_version_id' => $versionId,
+            'user_id'                    => $user->id,
+            'digital_product_version_id' => $version->id,
             'transaction_id'             => $response['id'],
             'amount'                     => $product->price,
             'download_limit'             => 5,

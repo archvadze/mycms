@@ -79,7 +79,7 @@ Route::post('/contact', [PageController::class, 'sendContact'])
     ->name('contact.send');
 
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'verified', 'client'])->group(function () {
     Route::get(
         '/payment/{orderId}/create',
         [PaymentController::class, 'createPayment']
@@ -101,7 +101,7 @@ Route::post('/domain-search', [DomainSearchController::class, 'search'])
     ->name('domain.search');
 
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'client'])->group(function () {
     Route::get('/order', [OrderController::class, 'create'])
         ->name('order.create');
 
@@ -208,6 +208,7 @@ Route::middleware(['module:module_shop'])->group(function () {
 Route::middleware([
     'auth',
     'verified',
+    'client',
     'module:module_shop',
 ])->group(function () {
     Route::get(
@@ -225,7 +226,7 @@ Route::middleware([
         [App\Http\Controllers\ShopController::class, 'checkoutCancel']
     )->name('shop.checkout.cancel');
 
-    Route::get(
+    Route::post(
         '/purchase/{purchase}/download',
         [App\Http\Controllers\ShopController::class, 'download']
     )->name('purchase.download');

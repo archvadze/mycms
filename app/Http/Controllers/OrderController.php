@@ -1,18 +1,21 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Support\ClientPortalAccess;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
     public function __construct(
-        private OrderService $orderService
+        private OrderService $orderService,
+        private ClientPortalAccess $portalAccess
     ) {}
 
     public function create()
     {
+        $this->portalAccess->currentClient();
+
         $services = $this->orderService->getAvailableServices();
         $features = $this->orderService->getAvailableFeatures();
         return view('order.create', compact('services', 'features'));
@@ -36,13 +39,10 @@ class OrderController extends Controller
             'additional_requirements' => 'nullable|string|max:2000',
         ]);
 
-        $clientId = null;
-        if (Auth::check() && Auth::user()->hasRole('Client') && Auth::user()->client) {
-            $clientId = Auth::user()->client->id;
-        }
+        $client = $this->portalAccess->currentClient();
 
         try {
-            $order = $this->orderService->createOrder($validated, $clientId);
+            $order = $this->orderService->createOrder($validated, $client->id);
             session(['order_success_id' => $order->id]);
             return redirect()->route('order.success', $order->id)
                 ->with('success', 'Your order has been submitted successfully!');
@@ -53,11 +53,7 @@ class OrderController extends Controller
 
     public function success($orderId)
     {
-          $order = \App\Models\Order::where('id', $orderId)
-            ->whereHas('client', function ($query) {
-          $query->where('user_id', auth()->id());
-            })
-            ->firstOrFail();
+         $order = $this->portalAccess->ownedOrderOrFail($orderId);
 
          session()->forget('order_success_id');
 

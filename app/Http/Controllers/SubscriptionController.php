@@ -6,17 +6,22 @@ use App\Mail\SubscriptionCancelAdminMail;
 use App\Mail\SubscriptionCancelRequestMail;
 use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
+use App\Support\ClientPortalAccess;
 use Illuminate\Support\Facades\Mail;
 
 class SubscriptionController extends Controller
 {
+    public function __construct(private ClientPortalAccess $portalAccess) {}
+
     public function plans()
     {
+        $user = $this->portalAccess->currentClientUser();
+
         $plans = SubscriptionPlan::where('is_active', true)
             ->orderBy('sort')
             ->get();
 
-        $current = Subscription::where('user_id', auth()->id())
+        $current = Subscription::where('user_id', $user->id)
             ->whereIn('status', ['active', 'pending'])
             ->with('plan')
             ->first();
@@ -26,7 +31,11 @@ class SubscriptionController extends Controller
 
     public function request(SubscriptionPlan $plan)
     {
-        $existing = Subscription::where('user_id', auth()->id())
+        $user = $this->portalAccess->currentClientUser();
+
+        abort_unless($plan->is_active, 404);
+
+        $existing = Subscription::where('user_id', $user->id)
             ->whereIn('status', ['active', 'pending'])
             ->first();
 
@@ -35,7 +44,7 @@ class SubscriptionController extends Controller
         }
 
         $sub = Subscription::create([
-            'user_id'              => auth()->id(),
+            'user_id'              => $user->id,
             'subscription_plan_id' => $plan->id,
             'status'               => 'pending',
         ]);
@@ -51,7 +60,9 @@ class SubscriptionController extends Controller
 
     public function cancel()
     {
-        $sub = Subscription::where('user_id', auth()->id())
+        $user = $this->portalAccess->currentClientUser();
+
+        $sub = Subscription::where('user_id', $user->id)
             ->where('status', 'active')
             ->first();
 

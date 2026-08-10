@@ -3,13 +3,17 @@
 namespace App\Support;
 
 use App\Models\Client;
+use App\Models\Order;
 use App\Models\Project;
 use App\Models\ProjectFile;
+use App\Models\Purchase;
+use App\Models\Subscription;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
 class ClientPortalAccess
 {
-    public function currentClient(): Client
+    public function currentClientUser(): User
     {
         $user = Auth::user();
 
@@ -22,7 +26,37 @@ class ClientPortalAccess
             abort(403);
         }
 
+        return $user;
+    }
+
+    public function currentClient(): Client
+    {
+        $user = $this->currentClientUser();
+
         return $user->client()->first() ?? abort(403);
+    }
+
+    public function ownedOrderOrFail(int|string $orderId): Order
+    {
+        return $this->currentClient()
+            ->orders()
+            ->with(['services', 'features', 'project'])
+            ->findOrFail($orderId);
+    }
+
+    public function ownedPurchaseOrFail(int|string $purchaseId): Purchase
+    {
+        return Purchase::query()
+            ->with(['version.product'])
+            ->where('user_id', $this->currentClientUser()->id)
+            ->findOrFail($purchaseId);
+    }
+
+    public function ownedSubscriptionOrFail(int|string $subscriptionId): Subscription
+    {
+        return Subscription::query()
+            ->where('user_id', $this->currentClientUser()->id)
+            ->findOrFail($subscriptionId);
     }
 
     public function ownedProjectOrFail(int|string $projectId): Project

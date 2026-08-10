@@ -6,6 +6,7 @@ use App\Filament\Pages\ManageSettings;
 use App\Filament\Resources\MenuItemResource;
 use App\Filament\Resources\PublicationResource;
 use App\Filament\Resources\ServiceResource;
+use App\Models\Client;
 use App\Models\DigitalProduct;
 use App\Models\Guide;
 use App\Models\MenuItem;
@@ -33,6 +34,7 @@ class ContentManagementWorkflowTest extends TestCase
         Role::create(['name' => 'Super Admin', 'guard_name' => 'web']);
         Role::create(['name' => 'Editor', 'guard_name' => 'web']);
         Role::create(['name' => 'Support', 'guard_name' => 'web']);
+        Role::create(['name' => 'Client', 'guard_name' => 'web']);
     }
 
     public function test_publication_publish_action_updates_existing_fields_and_clears_home_cache(): void
@@ -233,7 +235,16 @@ class ContentManagementWorkflowTest extends TestCase
 
     public function test_shop_checkout_success_does_not_resolve_unpublished_products(): void
     {
-        $user = User::factory()->create(['email_verified_at' => now()]);
+        $user = User::factory()->create([
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
+        $user->assignRole('Client');
+        Client::factory()->create([
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+        ]);
         $product = DigitalProduct::create([
             'name' => 'Unpublished Product',
             'slug' => 'unpublished-product',

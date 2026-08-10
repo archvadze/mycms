@@ -2,6 +2,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\Client;
 use App\Models\Service;
 use App\Models\Feature as FeatureModel;
 use App\Models\SiteSetting;
@@ -41,6 +42,11 @@ class OrderTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole('Client');
         $user->update(['status' => 'active']);
+        Client::factory()->create([
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+        ]);
 
         Service::create([
             'name' => 'Test Service',
