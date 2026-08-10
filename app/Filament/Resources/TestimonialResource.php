@@ -103,6 +103,8 @@ class TestimonialResource extends Resource
                     ->label('Featured'),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No testimonials')
+            ->emptyStateDescription('Client testimonials and publication state will appear here.')
             ->actions([
                 Actions\ActionGroup::make([
                     Actions\Action::make('preview')

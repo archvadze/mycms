@@ -58,7 +58,7 @@ class ActivityLogResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Operations';
+        return 'System';
     }
 
     public static function getNavigationIcon(): string|\BackedEnum|null

@@ -21,7 +21,7 @@ use Illuminate\Support\Str;
 class PortfolioProjectResource extends Resource
 {
     protected static ?string $model = PortfolioProject::class;
-    public static function getNavigationGroup(): ?string { return 'Operations'; }
+    public static function getNavigationGroup(): ?string { return 'Content'; }
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-photo';
     protected static ?int $navigationSort = 4;
 
@@ -160,6 +160,8 @@ class PortfolioProjectResource extends Resource
                     ->label('Featured'),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No portfolio projects')
+            ->emptyStateDescription('Published and draft portfolio work will appear here.')
             ->actions([
                 Actions\ActionGroup::make([
                     Actions\Action::make('publish')

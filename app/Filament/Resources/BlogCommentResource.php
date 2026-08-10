@@ -16,9 +16,9 @@ class BlogCommentResource extends Resource
 {
     protected static ?string $model = Comment::class;
     protected static ?string $navigationLabel = 'Comments';
-    public static function getNavigationGroup(): ?string { return 'Content'; }
+    public static function getNavigationGroup(): ?string { return 'Support'; }
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-chat-bubble-left-ellipsis';
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 2;
 
     public static function canViewAny(): bool
     {
@@ -114,6 +114,8 @@ class BlogCommentResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No comments')
+            ->emptyStateDescription('Reader comments that need moderation will appear here.')
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_blocked')
                     ->label('Blocked')

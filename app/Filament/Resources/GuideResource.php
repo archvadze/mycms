@@ -121,6 +121,8 @@ class GuideResource extends Resource
                     ->nullable(),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No guides')
+            ->emptyStateDescription('Published and draft guides will appear here.')
             ->actions([
                 Actions\ActionGroup::make([
                     Actions\Action::make('preview')

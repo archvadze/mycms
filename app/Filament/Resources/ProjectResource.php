@@ -64,7 +64,7 @@ class ProjectResource extends Resource
         return AdminAccess::canManageProjects();
     }
 
-    protected static ?string $navigationLabel = 'Client Projects';
+    protected static ?string $navigationLabel = 'Projects';
 
     public static function statusOptions(): array
     {
@@ -334,7 +334,8 @@ class ProjectResource extends Resource
                     ->label('Progress')
                     ->formatStateUsing(fn($state) => $state . '%')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('price')->money('USD'),
+                Tables\Columns\TextColumn::make('price')->money('USD')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('deadline')->date()->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')->since()->sortable(),
                 Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable()
@@ -369,6 +370,8 @@ class ProjectResource extends Resource
                         )),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No projects yet')
+            ->emptyStateDescription('Accepted orders and manually created work will appear here.')
             ->actions([
                 Actions\ActionGroup::make([
                     Actions\ViewAction::make(),

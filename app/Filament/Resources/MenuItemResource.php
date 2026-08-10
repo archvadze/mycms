@@ -17,10 +17,10 @@ use Illuminate\Database\Eloquent\Model;
 class MenuItemResource extends Resource
 {
     protected static ?string $model = MenuItem::class;
-    public static function getNavigationGroup(): ?string { return 'System'; }
+    public static function getNavigationGroup(): ?string { return 'Content'; }
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-bars-3';
     protected static ?string $navigationLabel = 'Menu Items';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 9;
 
     public static function canViewAny(): bool
     {

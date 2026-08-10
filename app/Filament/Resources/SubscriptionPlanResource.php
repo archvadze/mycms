@@ -16,12 +16,12 @@ class SubscriptionPlanResource extends Resource
 {
     protected static ?string $model = SubscriptionPlan::class;
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-squares-2x2';
-    protected static ?string $navigationLabel = 'Plans';
-    protected static ?int $navigationSort = 1;
+    protected static ?string $navigationLabel = 'Subscription Plans';
+    protected static ?int $navigationSort = 8;
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Subscriptions';
+        return 'Operations';
     }
 
     public static function canViewAny(): bool

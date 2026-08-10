@@ -147,6 +147,8 @@ class PublicationResource extends Resource
                     ->label('Published'),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No publications')
+            ->emptyStateDescription('Blog posts and public articles will appear here.')
             ->actions([
                 Actions\ActionGroup::make([
                     Actions\Action::make('preview')

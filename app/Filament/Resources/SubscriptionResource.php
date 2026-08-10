@@ -10,6 +10,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Actions;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use App\Support\AdminAccess;
 
@@ -18,11 +19,11 @@ class SubscriptionResource extends Resource
     protected static ?string $model = Subscription::class;
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-credit-card';
     protected static ?string $navigationLabel = 'Subscriptions';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 7;
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Subscriptions';
+        return 'Operations';
     }
 
     public static function canViewAny(): bool
@@ -70,6 +71,7 @@ class SubscriptionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn(Builder $query): Builder => $query->with(['user', 'plan']))
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')->searchable()->weight('bold'),
                 Tables\Columns\TextColumn::make('plan.name')->badge()->color('primary'),
@@ -97,7 +99,13 @@ class SubscriptionResource extends Resource
                         'expired'   => 'Expired',
                     ]),
                 Tables\Filters\TernaryFilter::make('cancel_requested')->label('Cancel Requested'),
+                Tables\Filters\SelectFilter::make('subscription_plan_id')
+                    ->label('Plan')
+                    ->relationship('plan', 'name')
+                    ->searchable(),
             ])
+            ->emptyStateHeading('No subscriptions')
+            ->emptyStateDescription('Client subscription requests and active plans will appear here.')
             ->actions([
                 Actions\Action::make('activate')
                     ->label('Activate')

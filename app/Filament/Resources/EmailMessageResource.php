@@ -465,6 +465,12 @@ class EmailMessageResource extends Resource
                         $record->is_read ? 'regular' : 'bold'
                     ),
 
+                Tables\Columns\TextColumn::make('thread.status')
+                    ->label('Status')
+                    ->badge()
+                    ->formatStateUsing(fn(?string $state): string => ucfirst($state ?: 'Unthreaded'))
+                    ->color(fn(?string $state): string => $state === 'open' ? 'success' : 'gray'),
+
                 Tables\Columns\TextColumn::make('received_at')
                     ->label('Received')
                     ->dateTime('M j, H:i')
@@ -538,6 +544,8 @@ class EmailMessageResource extends Resource
                     }),
             ])
             ->defaultSort('received_at', 'desc')
+            ->emptyStateHeading('No conversations')
+            ->emptyStateDescription('Inbound email conversations will appear here.')
             ->recordUrl(
                 fn(EmailMessage $record): string =>
                 static::getUrl('view', ['record' => $record])

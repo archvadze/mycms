@@ -408,6 +408,10 @@ class OrderResource extends Resource
                     ->searchable()
                     ->limit(30)
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('domain')
+                    ->searchable()
+                    ->limit(28)
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(
@@ -434,6 +438,17 @@ class OrderResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
                     ->options(static::statusOptions()),
+                Tables\Filters\SelectFilter::make('payment_status')
+                    ->label('Payment')
+                    ->options([
+                        'unpaid' => 'Unpaid',
+                        'paid' => 'Paid',
+                        'failed' => 'Failed',
+                    ]),
+                Tables\Filters\SelectFilter::make('client_id')
+                    ->label('Client')
+                    ->relationship('client', 'name')
+                    ->searchable(),
                 Tables\Filters\Filter::make('created_at')
                     ->schema([
                         Forms\Components\DatePicker::make('created_from')
@@ -456,6 +471,8 @@ class OrderResource extends Resource
                     }),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No orders yet')
+            ->emptyStateDescription('New client requests will appear here for review and follow-up.')
             ->actions([
                 Actions\ActionGroup::make([
                     Actions\ViewAction::make(),

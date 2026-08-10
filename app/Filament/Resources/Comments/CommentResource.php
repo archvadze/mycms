@@ -18,7 +18,7 @@ class CommentResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Content';
+        return 'Support';
     }
 
     public static function getNavigationIcon(): string|\BackedEnum|null

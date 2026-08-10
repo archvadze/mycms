@@ -12,6 +12,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
 use App\Support\AdminAccess;
+use Illuminate\Database\Eloquent\Builder;
 
 class ClientResource extends Resource
 {
@@ -104,6 +105,7 @@ class ClientResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn(Builder $query): Builder => $query->with('user')->withCount(['orders', 'projects']))
             ->columns([
                 Tables\Columns\ImageColumn::make('user.avatar')
                     ->label('')
@@ -126,8 +128,8 @@ class ClientResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('company')->searchable()->toggleable(),
                 Tables\Columns\TextColumn::make('country')->toggleable(),
-                Tables\Columns\TextColumn::make('orders_count')->label('Orders')->counts('orders')->sortable(),
-                Tables\Columns\TextColumn::make('projects_count')->label('Projects')->counts('projects')->sortable(),
+                Tables\Columns\TextColumn::make('orders_count')->label('Orders')->sortable(),
+                Tables\Columns\TextColumn::make('projects_count')->label('Projects')->sortable(),
                 Tables\Columns\TextColumn::make('created_at')->dateTime('M j, Y')->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -141,6 +143,8 @@ class ClientResource extends Resource
                     ->options(self::countries()),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No clients')
+            ->emptyStateDescription('Client profiles are created from orders, portal accounts, or admin entry.')
             ->actions([
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),

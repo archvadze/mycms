@@ -101,6 +101,8 @@ class ServiceResource extends Resource
                     ->label('Active'),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No services')
+            ->emptyStateDescription('Service offerings and their visibility state will appear here.')
             ->actions([
                 Actions\ActionGroup::make([
                     Actions\Action::make('preview')

@@ -15,10 +15,10 @@ use App\Support\AdminAccess;
 class ContactMessageResource extends Resource
 {
     protected static ?string $model = ContactMessage::class;
-    public static function getNavigationGroup(): ?string { return 'Operations'; }
+    public static function getNavigationGroup(): ?string { return 'Support'; }
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
-    protected static ?string $navigationLabel = 'Messages';
-    protected static ?int $navigationSort = 6;
+    protected static ?string $navigationLabel = 'Contact Messages';
+    protected static ?int $navigationSort = 1;
 
     public static function canViewAny(): bool
     {
@@ -53,8 +53,11 @@ class ContactMessageResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No contact messages')
+            ->emptyStateDescription('Submitted website contact forms will appear here.')
             ->actions([
-                Actions\ViewAction::make(),
+                Actions\EditAction::make()
+                    ->label('Open'),
                 Actions\DeleteAction::make(),
             ])
             ->bulkActions([

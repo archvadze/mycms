@@ -15,6 +15,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use App\Support\AdminAccess;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -169,6 +170,10 @@ class DigitalProductResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn(Builder $query): Builder => $query->withCount([
+                'versions',
+                'versions as active_versions_count' => fn(Builder $query): Builder => $query->where('is_active', true),
+            ]))
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
                     ->label('Cover')
@@ -189,6 +194,10 @@ class DigitalProductResource extends Resource
                 Tables\Columns\TextColumn::make('price')
                     ->money('USD')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('active_versions_count')
+                    ->label('Active Versions')
+                    ->badge()
+                    ->color(fn(int $state): string => $state > 0 ? 'success' : 'gray'),
                 Tables\Columns\IconColumn::make('is_published')->boolean(),
                 Tables\Columns\IconColumn::make('is_featured')->boolean(),
                 Tables\Columns\TextColumn::make('updated_at')
@@ -213,6 +222,8 @@ class DigitalProductResource extends Resource
                     ]),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No digital products')
+            ->emptyStateDescription('Products and their private file versions will appear here.')
             ->actions([
                 Actions\ActionGroup::make([
                     Actions\Action::make('preview')

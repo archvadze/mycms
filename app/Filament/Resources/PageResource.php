@@ -17,9 +17,9 @@ use Illuminate\Database\Eloquent\Model;
 class PageResource extends Resource
 {
     protected static ?string $model = Page::class;
-    public static function getNavigationGroup(): ?string { return 'System'; }
+    public static function getNavigationGroup(): ?string { return 'Content'; }
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-text';
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 0;
     protected static ?string $navigationLabel = 'Pages';
 
     public static function canViewAny(): bool
@@ -302,6 +302,8 @@ class PageResource extends Resource
                     ->options(static::statusOptions()),
             ])
             ->defaultSort('updated_at', 'desc')
+            ->emptyStateHeading('No pages')
+            ->emptyStateDescription('Create managed pages for reusable site content.')
             ->actions([
                 Actions\ActionGroup::make([
                     Actions\Action::make('preview')

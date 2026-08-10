@@ -5,12 +5,14 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\PurchaseResource\Pages;
 use App\Models\Purchase;
 use Filament\Actions;
+use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
 use App\Support\AdminAccess;
+use Illuminate\Database\Eloquent\Builder;
 
 class PurchaseResource extends Resource
 {
@@ -63,6 +65,7 @@ class PurchaseResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn(Builder $query): Builder => $query->with(['user', 'version.product']))
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Customer')
@@ -80,13 +83,48 @@ class PurchaseResource extends Resource
                 Tables\Columns\TextColumn::make('download_limit')
                     ->label('Downloads Left'),
                 Tables\Columns\TextColumn::make('download_expires_at')
-                    ->dateTime()
-                    ->sortable(),
+                    ->label('Expires')
+                    ->date()
+                    ->sortable()
+                    ->placeholder('No expiry'),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
+                    ->label('Purchased')
+                    ->since()
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
+            ->filters([
+                Tables\Filters\SelectFilter::make('user_id')
+                    ->label('Customer')
+                    ->relationship('user', 'name')
+                    ->searchable(),
+                Tables\Filters\SelectFilter::make('digital_product_version_id')
+                    ->label('Product version')
+                    ->relationship('version', 'version_number')
+                    ->searchable(),
+                Tables\Filters\Filter::make('download_state')
+                    ->label('Download state')
+                    ->schema([
+                        Forms\Components\Select::make('state')
+                            ->options([
+                                'available' => 'Available',
+                                'expired' => 'Expired',
+                                'depleted' => 'No downloads left',
+                            ]),
+                    ])
+                    ->query(fn(Builder $query, array $data): Builder => match ($data['state'] ?? null) {
+                        'available' => $query
+                            ->where('download_limit', '>', 0)
+                            ->where(fn(Builder $query): Builder => $query
+                                ->whereNull('download_expires_at')
+                                ->orWhere('download_expires_at', '>=', now())),
+                        'expired' => $query->whereNotNull('download_expires_at')->where('download_expires_at', '<', now()),
+                        'depleted' => $query->where('download_limit', '<=', 0),
+                        default => $query,
+                    }),
+            ])
+            ->emptyStateHeading('No purchases')
+            ->emptyStateDescription('Completed digital product purchases will appear here.')
             ->actions([
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),

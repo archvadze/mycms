@@ -14,6 +14,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use App\Support\AdminAccess;
 use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -178,6 +179,7 @@ class DigitalProductVersionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn(Builder $query): Builder => $query->with('product'))
             ->columns([
                 Tables\Columns\TextColumn::make('product.name')
                     ->label('Product')
@@ -193,7 +195,17 @@ class DigitalProductVersionResource extends Resource
                     ->dateTime()
                     ->sortable(),
             ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('digital_product_id')
+                    ->label('Product')
+                    ->relationship('product', 'name')
+                    ->searchable(),
+                Tables\Filters\TernaryFilter::make('is_active')
+                    ->label('Active'),
+            ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('No product versions')
+            ->emptyStateDescription('Private product files are managed as versions here.')
             ->actions([
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make()
