@@ -7,7 +7,7 @@
 
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-gray-900" style="letter-spacing:-0.02em">Edit Profile</h1>
-      <p class="mt-1 text-gray-500">Update your account information</p>
+      <p class="mt-1 text-gray-500">Update your client-facing account and contact details.</p>
     </div>
 
     @if(session('status') === 'profile-updated')
@@ -18,14 +18,14 @@
 
     {{-- Avatar Section --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-8 mb-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-2">Choose Avatar</h2>
-      <p class="text-sm text-gray-500 mb-6">Select an avatar that represents you</p>
+      <h2 class="text-lg font-semibold text-gray-900 mb-2">Avatar</h2>
+      <p class="text-sm text-gray-500 mb-6">This appears in your client portal messages.</p>
 
       <form method="POST" action="{{ route('profile.update') }}">
         @csrf
         @method('patch')
 
-        <div style="display:grid; grid-template-columns: repeat(6,1fr); gap:12px; margin-bottom:24px;">
+        <div class="grid grid-cols-4 gap-3 sm:grid-cols-6" style="margin-bottom:24px;">
           @for($i = 1; $i <= 12; $i++)
           <label style="cursor:pointer;">
             <input type="radio" name="avatar" value="avatar{{ $i }}.svg"
@@ -53,13 +53,14 @@
 
     {{-- Profile Info --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-8 mb-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-6">Profile Information</h2>
+      <h2 class="text-lg font-semibold text-gray-900 mb-2">Profile Information</h2>
+      <p class="text-sm text-gray-500 mb-6">Only your personal and contact fields can be edited here.</p>
 
       <form method="POST" action="{{ route('profile.update') }}" class="space-y-5">
         @csrf
         @method('patch')
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="space-y-2">
             <label class="block text-sm font-medium text-gray-700">Name *</label>
             <input type="text" name="name" value="{{ old('name', Auth::user()->name) }}" required
@@ -74,7 +75,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="space-y-2">
             <label class="block text-sm font-medium text-gray-700">Phone</label>
             <input type="tel" name="phone" value="{{ old('phone', Auth::user()->client?->phone) }}"
@@ -101,7 +102,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="space-y-2">
             <label class="block text-sm font-medium text-gray-700">Company</label>
             <input type="text" name="company" value="{{ old('company', Auth::user()->client?->company) }}"
@@ -115,7 +116,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="space-y-2">
             <label class="block text-sm font-medium text-gray-700">LinkedIn</label>
             <input type="url" name="social_linkedin" value="{{ old('social_linkedin', Auth::user()->client?->social_linkedin) }}"
@@ -139,7 +140,7 @@
         {{-- Interests --}}
         <div class="space-y-2">
           <label class="block text-sm font-medium text-gray-700">Interests</label>
-          <div style="display:grid; grid-template-columns: repeat(2,1fr); gap:8px;">
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
             @php
               $interests = ['Technology','Design','Business','Marketing','E-commerce',
                            'Education','Healthcare','Finance','Real Estate','Travel',
@@ -171,7 +172,8 @@
 
     {{-- Password Form --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-8 mb-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-6">Change Password</h2>
+      <h2 class="text-lg font-semibold text-gray-900 mb-2">Change Password</h2>
+      <p class="text-sm text-gray-500 mb-6">Use a strong password that you do not reuse elsewhere.</p>
       <form method="POST" action="{{ route('password.update') }}" class="space-y-5">
         @csrf
         @method('put')

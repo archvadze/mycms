@@ -12,8 +12,8 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
         </svg>
       </div>
-      <h1 class="text-4xl font-bold text-gray-900 mb-3" style="letter-spacing: -0.02em;">Order Submitted!</h1>
-      <p class="text-xl text-gray-600">Thank you! We will contact you within 24 hours.</p>
+      <h1 class="text-4xl font-bold text-gray-900 mb-3" style="letter-spacing: -0.02em;">Order Submitted</h1>
+      <p class="text-xl text-gray-600">Your request is saved and visible in your client dashboard.</p>
     </div>
 
     {{-- Order Details --}}
@@ -25,26 +25,36 @@
         <div class="px-6 py-4 grid grid-cols-3 gap-4">
           <dt class="text-sm text-gray-500">Status</dt>
           <dd class="col-span-2">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-              {{ ucfirst($order->status) }}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ \App\Support\ClientPortalDisplay::orderStatusBadge($order->status) }}">
+              {{ \App\Support\ClientPortalDisplay::orderStatusLabel($order->status) }}
             </span>
           </dd>
         </div>
+        @if($order->payment_status)
         <div class="px-6 py-4 grid grid-cols-3 gap-4">
+          <dt class="text-sm text-gray-500">Payment</dt>
+          <dd class="col-span-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ \App\Support\ClientPortalDisplay::paymentStatusBadge($order->payment_status) }}">
+              {{ \App\Support\ClientPortalDisplay::paymentStatusLabel($order->payment_status) }}
+            </span>
+          </dd>
+        </div>
+        @endif
+        <div class="px-6 py-4 grid grid-cols-1 gap-1 sm:grid-cols-3 sm:gap-4">
           <dt class="text-sm text-gray-500">Domain</dt>
-          <dd class="col-span-2 text-sm text-gray-900 font-medium">{{ $order->domain }}</dd>
+          <dd class="sm:col-span-2 text-sm text-gray-900 font-medium">{{ $order->domain ?: 'Not specified' }}</dd>
         </div>
-        <div class="px-6 py-4 grid grid-cols-3 gap-4">
+        <div class="px-6 py-4 grid grid-cols-1 gap-1 sm:grid-cols-3 sm:gap-4">
           <dt class="text-sm text-gray-500">Website Type</dt>
-          <dd class="col-span-2 text-sm text-gray-900">{{ ucfirst(str_replace('-', ' ', $order->website_type)) }}</dd>
+          <dd class="sm:col-span-2 text-sm text-gray-900">{{ Str::of($order->website_type)->replace('-', ' ')->title() }}</dd>
         </div>
-        <div class="px-6 py-4 grid grid-cols-3 gap-4">
+        <div class="px-6 py-4 grid grid-cols-1 gap-1 sm:grid-cols-3 sm:gap-4">
           <dt class="text-sm text-gray-500">Timeline</dt>
-          <dd class="col-span-2 text-sm text-gray-900">{{ ucfirst(str_replace('-', ' ', $order->timeline ?? '-')) }}</dd>
+          <dd class="sm:col-span-2 text-sm text-gray-900">{{ Str::of($order->timeline ?? '-')->replace('-', ' ')->title() }}</dd>
         </div>
-        <div class="px-6 py-4 grid grid-cols-3 gap-4">
+        <div class="px-6 py-4 grid grid-cols-1 gap-1 sm:grid-cols-3 sm:gap-4">
           <dt class="text-sm text-gray-500">Budget</dt>
-          <dd class="col-span-2 text-sm text-gray-900">{{ str_replace('-', ' ', $order->budget_range ?? '-') }}</dd>
+          <dd class="sm:col-span-2 text-sm text-gray-900">{{ Str::of($order->budget_range ?? '-')->replace('-', ' ')->title() }}</dd>
         </div>
         <div class="px-6 py-4 grid grid-cols-3 gap-4">
           <dt class="text-sm text-gray-500">Services</dt>
@@ -89,12 +99,12 @@
 
     {{-- Next Steps --}}
     <div class="bg-blue-50 rounded-xl border border-blue-100 p-6 mb-8">
-      <h3 class="text-sm font-semibold text-blue-900 mb-3">What's Next?</h3>
+      <h3 class="text-sm font-semibold text-blue-900 mb-3">What happens next</h3>
       <ol class="space-y-2 text-sm text-blue-800">
-        <li class="flex items-start gap-2"><span class="font-bold">1.</span> Our team will review your order within 24 hours</li>
-        <li class="flex items-start gap-2"><span class="font-bold">2.</span> We'll send you a detailed proposal with timeline and pricing</li>
-        <li class="flex items-start gap-2"><span class="font-bold">3.</span> Once approved, we'll start working on your project</li>
-        <li class="flex items-start gap-2"><span class="font-bold">4.</span> You'll receive regular updates through your dashboard</li>
+        <li class="flex items-start gap-2"><span class="font-bold">1.</span> We review your request and confirm any missing details.</li>
+        <li class="flex items-start gap-2"><span class="font-bold">2.</span> You receive the final estimate and payment instructions when applicable.</li>
+        <li class="flex items-start gap-2"><span class="font-bold">3.</span> Accepted work becomes a project in your dashboard.</li>
+        <li class="flex items-start gap-2"><span class="font-bold">4.</span> Messages and files stay available from the project page.</li>
       </ol>
     </div>
 
@@ -125,7 +135,7 @@
         <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
-        <p class="text-sm text-green-800 font-medium">Payment completed ✓</p>
+        <p class="text-sm text-green-800 font-medium">Payment completed</p>
     </div>
     @endif
 

@@ -67,9 +67,23 @@
 
                 <div class="hidden md:flex items-center gap-3">
                     @auth
-                        @if(auth()->user()->hasRole('client') || auth()->user()->hasRole('Client'))
+                        @php
+                            $canUseClientPortal = auth()->user()->hasRole('Client')
+                                && auth()->user()->client()->exists();
+                        @endphp
+
+                        @if($canUseClientPortal)
                             <a href="{{ route('client-dashboard.index') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
-                                {{ auth()->user()->name }}
+                                Dashboard
+                            </a>
+                            <a href="{{ route('order.create') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
+                                Orders
+                            </a>
+                            <a href="{{ route('shop.index') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
+                                Shop
+                            </a>
+                            <a href="{{ route('subscription.plans') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
+                                Subscription
                             </a>
                             <span class="text-gray-300">|</span>
                             <a href="{{ route('client-dashboard.profile') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
@@ -116,9 +130,26 @@
                 @endforeach
                 <div class="pt-3 border-t border-gray-200 space-y-2">
                     @auth
-                        @if(auth()->user()->hasRole('client'))
+                        @php
+                            $canUseClientPortal = auth()->user()->hasRole('Client')
+                                && auth()->user()->client()->exists();
+                        @endphp
+
+                        @if($canUseClientPortal)
                             <a href="{{ route('client-dashboard.index') }}" class="block py-2 text-sm font-medium text-gray-600">
                                 Dashboard
+                            </a>
+                            <a href="{{ route('order.create') }}" class="block py-2 text-sm font-medium text-gray-600">
+                                Orders
+                            </a>
+                            <a href="{{ route('shop.index') }}" class="block py-2 text-sm font-medium text-gray-600">
+                                Shop
+                            </a>
+                            <a href="{{ route('subscription.plans') }}" class="block py-2 text-sm font-medium text-gray-600">
+                                Subscription
+                            </a>
+                            <a href="{{ route('client-dashboard.profile') }}" class="block py-2 text-sm font-medium text-gray-600">
+                                Profile
                             </a>
                         @elseif(auth()->user()->hasRole(['Super Admin', 'Admin', 'Editor', 'Support']))
                             <a href="/{{ config('agency.admin_path', 'manage') }}" class="block py-2 text-sm font-medium text-gray-600">

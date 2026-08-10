@@ -5,8 +5,8 @@
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
     
     <div class="text-center mb-12">
-      <h1 class="text-4xl font-bold text-gray-900 mb-4">Choose Your Plan</h1>
-      <p class="text-gray-500">Select a support plan that fits your needs</p>
+      <h1 class="text-4xl font-bold text-gray-900 mb-4">Support Plans</h1>
+      <p class="text-gray-500">Choose ongoing support for active projects and maintenance.</p>
     </div>
 
     @if($current)
@@ -15,8 +15,11 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
       <p class="text-sm text-blue-800">
-        You are currently on the <strong>{{ $current->plan->name }}</strong> plan 
-        ({{ ucfirst($current->status) }}).
+        You are currently on the <strong>{{ $current->plan->name }}</strong> plan
+        ({{ \App\Support\ClientPortalDisplay::subscriptionStatusLabel($current->status) }}).
+        @if($current->cancel_requested)
+          Cancellation has already been requested.
+        @endif
       </p>
     </div>
     @endif
@@ -33,6 +36,12 @@
     </div>
     @endif
 
+    @if($plans->isEmpty())
+      <div class="rounded-xl border border-dashed border-gray-200 bg-white p-8 text-center">
+        <h2 class="text-sm font-semibold text-gray-900">No support plans are currently available</h2>
+        <p class="mt-1 text-sm text-gray-500">Please check back later or contact the team through an active project.</p>
+      </div>
+    @else
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       @foreach($plans as $plan)
       @php $isCurrentPlan = $current && $current->subscription_plan_id === $plan->id; @endphp
@@ -67,7 +76,7 @@
 
         @if($isCurrentPlan)
           <div class="w-full text-center py-3 bg-green-50 text-green-700 font-medium rounded-xl text-sm">
-            Current Plan ✓
+            Current Plan
           </div>
         @elseif($current)
           <div class="w-full text-center py-3 bg-gray-50 text-gray-400 font-medium rounded-xl text-sm">
@@ -86,6 +95,7 @@
       </div>
       @endforeach
     </div>
+    @endif
 
     <div class="mt-8 text-center">
       <a href="{{ route('client-dashboard.index') }}" class="text-sm text-gray-400 hover:text-gray-600">

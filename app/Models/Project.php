@@ -61,6 +61,12 @@ class Project extends Model
     {
         return $this->hasMany(ProjectMessage::class);
     }
+
+    public function latestMessage()
+    {
+        return $this->hasOne(ProjectMessage::class)->latestOfMany();
+    }
+
     public function files(): HasMany
     {
         return $this->hasMany(ProjectFile::class);

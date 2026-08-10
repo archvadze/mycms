@@ -18,10 +18,11 @@ public function index()
     $client = $this->portalAccess->currentClient();
     $projects = $client->projects()
         ->with([
-            'messages' => fn($q) => $q->latest()->limit(3),
+            'latestMessage.sender',
             'order',
         ])
         ->latest()
+        ->take(8)
         ->get();
 
     $orders = $client->orders()
@@ -43,12 +44,14 @@ public function index()
         'total_projects'     => $client->projects()->count(),
         'active_projects'    => $client->projects()->where('status', 'in_progress')->count(),
         'completed_projects' => $client->projects()->where('status', 'completed')->count(),
+        'pending_orders' => $client->orders()->where('status', 'pending')->count(),
         'total_orders' => $totalOrders,
     ];
 
     $purchases = \App\Models\Purchase::where('user_id', auth()->id())
         ->with(['version.product'])
         ->latest()
+        ->take(6)
         ->get();
 
     $subscription = \App\Models\Subscription::where('user_id', auth()->id())
@@ -69,7 +72,10 @@ public function index()
             ->with('sender')
             ->orderBy('created_at')
             ->paginate(50, ['*'], 'messages_page');
-        $files = $project->files()->orderBy('created_at', 'desc')->get();
+        $files = $project->files()
+            ->with('uploader')
+            ->orderBy('created_at', 'desc')
+            ->get();
         return view('client-dashboard.project', compact('project', 'messages', 'files'));
     }
 

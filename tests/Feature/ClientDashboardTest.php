@@ -2,14 +2,20 @@
 namespace Tests\Feature;
 
 use App\Models\Client;
+use App\Models\DigitalProduct;
+use App\Models\DigitalProductVersion;
 use App\Models\Order;
 use App\Models\Project;
 use App\Models\ProjectFile;
 use App\Models\ProjectMessage;
+use App\Models\Purchase;
+use App\Models\Subscription;
+use App\Models\SubscriptionPlan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -46,6 +52,50 @@ class ClientDashboardTest extends TestCase
 
         $response = $this->actingAs($user)->get('/client-dashboard');
         $response->assertStatus(200);
+    }
+
+    public function test_empty_dashboard_shows_client_next_steps(): void
+    {
+        [$user] = $this->clientUser();
+
+        $this->actingAs($user)
+            ->get(route('client-dashboard.index'))
+            ->assertOk()
+            ->assertSee('Recent Projects')
+            ->assertSee('No projects yet')
+            ->assertSee('No recent team messages')
+            ->assertSee('No orders yet')
+            ->assertSee('No active subscription')
+            ->assertSee('No digital purchases yet');
+    }
+
+    public function test_client_with_client_record_sees_client_navigation(): void
+    {
+        [$user] = $this->clientUser();
+
+        $this->actingAs($user)
+            ->get(route('home'))
+            ->assertOk()
+            ->assertSee(route('client-dashboard.index', absolute: false), false)
+            ->assertSee(route('order.create', absolute: false), false)
+            ->assertSee(route('shop.index', absolute: false), false)
+            ->assertSee(route('subscription.plans', absolute: false), false)
+            ->assertSee(route('client-dashboard.profile', absolute: false), false);
+    }
+
+    public function test_client_without_client_record_does_not_see_client_portal_navigation(): void
+    {
+        $user = User::factory()->create([
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
+        $user->assignRole('Client');
+
+        $this->actingAs($user)
+            ->get(route('home'))
+            ->assertOk()
+            ->assertDontSee(route('client-dashboard.index', absolute: false), false)
+            ->assertDontSee(route('client-dashboard.profile', absolute: false), false);
     }
 
     public function test_client_without_client_record_cannot_access_dashboard(): void
@@ -146,6 +196,81 @@ class ClientDashboardTest extends TestCase
             ->assertOk()
             ->assertSee('Beta client project')
             ->assertDontSee('Alpha client project');
+    }
+
+    public function test_dashboard_presents_owned_financial_context_without_internal_identifiers(): void
+    {
+        [$owner, $ownerClient] = $this->clientUser();
+        [$otherUser] = $this->clientUser();
+
+        $order = Order::factory()->create([
+            'client_id' => $ownerClient->id,
+            'domain' => 'owned-order.example',
+            'status' => 'pending',
+            'payment_status' => 'unpaid',
+        ]);
+
+        $plan = SubscriptionPlan::create([
+            'name' => 'Care Plan',
+            'slug' => 'care-plan',
+            'description' => 'Ongoing support',
+            'price' => 49,
+            'currency' => 'EUR',
+            'billing_cycle' => 'monthly',
+            'features' => ['Priority support'],
+            'is_active' => true,
+            'sort' => 1,
+        ]);
+
+        Subscription::create([
+            'user_id' => $owner->id,
+            'subscription_plan_id' => $plan->id,
+            'status' => 'active',
+            'next_invoice_at' => now()->addMonth(),
+        ]);
+
+        $product = DigitalProduct::create([
+            'name' => 'Owned Toolkit',
+            'slug' => 'owned-toolkit',
+            'description' => 'A useful product',
+            'category' => 'tools',
+            'price' => 29,
+            'is_published' => true,
+            'user_id' => $owner->id,
+        ]);
+        $version = DigitalProductVersion::create([
+            'digital_product_id' => $product->id,
+            'version_number' => '1.0',
+            'file_path' => 'digital-products/toolkit.zip',
+            'is_active' => true,
+        ]);
+        $purchase = Purchase::create([
+            'user_id' => $owner->id,
+            'digital_product_version_id' => $version->id,
+            'transaction_id' => 'txn-secret-owned',
+            'amount' => 29,
+            'download_limit' => 3,
+            'download_expires_at' => now()->addYear(),
+        ]);
+
+        $otherPurchase = $this->purchaseFor($otherUser, [
+            'product_name' => 'Other Client Toolkit',
+            'transaction_id' => 'txn-secret-other',
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('client-dashboard.index'))
+            ->assertOk()
+            ->assertSee('owned-order.example')
+            ->assertSee('Care Plan')
+            ->assertSee('Owned Toolkit')
+            ->assertSee('3 downloads remaining')
+            ->assertDontSee('Other Client Toolkit')
+            ->assertDontSee($purchase->transaction_id)
+            ->assertDontSee($purchase->license_key)
+            ->assertDontSee($otherPurchase->transaction_id);
+
+        $this->assertSame($order->id, $order->fresh()->id);
     }
 
     public function test_client_message_creation_uses_owned_project_and_authenticated_sender(): void
@@ -292,6 +417,31 @@ class ClientDashboardTest extends TestCase
             ->assertDontSee('Other client hidden message');
     }
 
+    public function test_project_file_list_uses_safe_names_and_empty_state(): void
+    {
+        Storage::fake('local');
+
+        [$owner, $ownerClient] = $this->clientUser();
+        $project = Project::factory()->create(['client_id' => $ownerClient->id]);
+
+        $this->actingAs($owner)
+            ->get(route('client-dashboard.project', $project))
+            ->assertOk()
+            ->assertSee('No files yet');
+
+        ProjectFile::create([
+            'project_id' => $project->id,
+            'file_path' => 'project-files/'.$project->id.'/client-brief.pdf',
+            'uploaded_by' => $owner->id,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('client-dashboard.project', $project))
+            ->assertOk()
+            ->assertSee('client-brief.pdf')
+            ->assertDontSee('project-files/'.$project->id);
+    }
+
     public function test_project_file_download_is_project_and_owner_scoped(): void
     {
         Storage::fake('local');
@@ -388,6 +538,35 @@ class ClientDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('client-dashboard.download-file', [$project, $file]))
             ->assertRedirect('/login');
+    }
+
+    private function purchaseFor(User $user, array $attributes = []): Purchase
+    {
+        $product = DigitalProduct::create([
+            'name' => $attributes['product_name'] ?? 'Client Product',
+            'slug' => Str::slug($attributes['product_name'] ?? 'Client Product').'-'.Str::random(6),
+            'description' => 'Downloadable product',
+            'category' => 'tools',
+            'price' => $attributes['amount'] ?? 49,
+            'is_published' => true,
+            'user_id' => $user->id,
+        ]);
+
+        $version = DigitalProductVersion::create([
+            'digital_product_id' => $product->id,
+            'version_number' => $attributes['version_number'] ?? '1.0',
+            'file_path' => $attributes['file_path'] ?? 'digital-products/product.zip',
+            'is_active' => true,
+        ]);
+
+        return Purchase::create([
+            'user_id' => $user->id,
+            'digital_product_version_id' => $version->id,
+            'transaction_id' => $attributes['transaction_id'] ?? 'txn-'.Str::random(8),
+            'amount' => $attributes['amount'] ?? 49,
+            'download_limit' => $attributes['download_limit'] ?? 5,
+            'download_expires_at' => $attributes['download_expires_at'] ?? now()->addYear(),
+        ]);
     }
 
     private function clientUser(array $attributes = []): array
