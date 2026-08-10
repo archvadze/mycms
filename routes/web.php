@@ -126,15 +126,15 @@ Route::middleware(['auth', 'verified', 'client'])
         Route::post(
             '/project/{projectId}/message',
             [ClientDashboardController::class, 'sendMessage']
-        )->name('send-message');
+        )->middleware('throttle:30,1')->name('send-message');
 
         Route::post(
             '/project/{projectId}/upload',
             [ClientDashboardController::class, 'uploadFile']
-        )->name('upload-file');
+        )->middleware('throttle:20,60')->name('upload-file');
 
         Route::get(
-            '/file/{fileId}/download',
+            '/project/{projectId}/file/{fileId}/download',
             [ClientDashboardController::class, 'downloadFile']
         )->name('download-file');
 

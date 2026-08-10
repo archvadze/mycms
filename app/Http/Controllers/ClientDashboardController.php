@@ -1,38 +1,21 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\Client;
-use App\Services\ClientService;
 use App\Models\ProjectMessage;
 use App\Models\ProjectFile;
+use App\Support\ClientPortalAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ClientDashboardController extends Controller
 {
-    public function __construct(private ClientService $clientService) {}
-
-    private function getOrCreateClient()
-    {
-        $user = Auth::user();
-        $client = $user->client;
-        if (!$client) {
-            $client = Client::create([
-                'user_id' => $user->id,
-                'name'    => $user->name,
-                'email'   => $user->email,
-                'phone'   => null,
-                'company' => null,
-                'country' => null,
-            ]);
-        }
-        return $client;
-    }
+    public function __construct(private ClientPortalAccess $portalAccess) {}
 
 public function index()
 {
-    $client = $this->getOrCreateClient();
+    $client = $this->portalAccess->currentClient();
     $projects = $client->projects()
         ->with([
             'messages' => fn($q) => $q->latest()->limit(3),
@@ -49,7 +32,7 @@ public function index()
 
     $totalOrders = $client->orders()->count();
 
-    $recentMessages = ProjectMessage::whereIn('project_id', $projects->pluck('id'))
+    $recentMessages = ProjectMessage::whereIn('project_id', $client->projects()->select('id'))
         ->where('sender_id', '!=', Auth::id())
         ->with('project')
         ->orderBy('created_at', 'desc')
@@ -57,9 +40,9 @@ public function index()
         ->get();
 
     $stats = [
-        'total_projects'     => $projects->count(),
-        'active_projects'    => $projects->where('status', 'in_progress')->count(),
-        'completed_projects' => $projects->where('status', 'completed')->count(),
+        'total_projects'     => $client->projects()->count(),
+        'active_projects'    => $client->projects()->where('status', 'in_progress')->count(),
+        'completed_projects' => $client->projects()->where('status', 'completed')->count(),
         'total_orders' => $totalOrders,
     ];
 
@@ -78,34 +61,46 @@ public function index()
 
     public function project($id)
     {
-        $client = $this->getOrCreateClient();
+        $client = $this->portalAccess->currentClient();
         $project = $client->projects()
             ->with(['order.services', 'order.features'])
             ->findOrFail($id);
-        $messages = $project->messages()->with('sender')->orderBy('created_at')->get();
+        $messages = $project->messages()
+            ->with('sender')
+            ->orderBy('created_at')
+            ->paginate(50, ['*'], 'messages_page');
         $files = $project->files()->orderBy('created_at', 'desc')->get();
         return view('client-dashboard.project', compact('project', 'messages', 'files'));
     }
 
     public function sendMessage(Request $request, $projectId)
     {
-        $request->validate(['message' => 'required|string|max:1000']);
-        $client = $this->getOrCreateClient();
-        $project = $client->projects()->findOrFail($projectId);
+        $project = $this->portalAccess->ownedProjectOrFail($projectId);
+        $validated = $request->validate(['message' => 'required|string|max:1000']);
+
         ProjectMessage::create([
             'project_id' => $project->id,
             'sender_id'  => Auth::id(),
-            'message'    => $request->message,
+            'message'    => $validated['message'],
         ]);
         return back()->with('success', 'Message sent successfully.');
     }
 
     public function uploadFile(Request $request, $projectId)
     {
-        $request->validate(['file' => 'required|file|max:10240']);
-        $client = $this->getOrCreateClient();
-        $project = $client->projects()->findOrFail($projectId);
-        $path = $request->file('file')->store('project-files', 'public');
+        $project = $this->portalAccess->ownedProjectOrFail($projectId);
+
+        $request->validate([
+            'file' => [
+                'required',
+                'file',
+                'max:10240',
+                'mimes:pdf,jpg,jpeg,png,webp,txt,doc,docx,xls,xlsx,zip',
+            ],
+        ]);
+
+        $path = $request->file('file')->store("project-files/{$project->id}", 'local');
+
         ProjectFile::create([
             'project_id'  => $project->id,
             'file_path'   => $path,
@@ -119,12 +114,21 @@ public function index()
         return view('profile.edit');
     }
 
-    public function downloadFile($fileId)
+    public function downloadFile($projectId, $fileId)
     {
-        $client = $this->getOrCreateClient();
-        $file = ProjectFile::whereHas('project', function ($query) use ($client) {
-            $query->where('client_id', $client->id);
-        })->findOrFail($fileId);
-        return Storage::disk('public')->download($file->file_path);
+        [, $file] = $this->portalAccess->ownedProjectFileOrFail($projectId, $fileId);
+        $downloadName = Str::of(basename($file->file_path))
+            ->replaceMatches('/[^A-Za-z0-9._-]+/', '_')
+            ->value();
+
+        if (Storage::disk('local')->exists($file->file_path)) {
+            return Storage::disk('local')->download($file->file_path, $downloadName);
+        }
+
+        if (Storage::disk('public')->exists($file->file_path)) {
+            return Storage::disk('public')->download($file->file_path, $downloadName);
+        }
+
+        abort(404);
     }
 }

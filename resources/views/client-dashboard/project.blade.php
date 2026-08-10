@@ -221,6 +221,10 @@
             </div>
             @endforelse
           </div>
+
+          <div class="mt-6">
+            {{ $messages->links() }}
+          </div>
         </div>
       </div>
 
@@ -241,7 +245,7 @@
                   d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
               </svg>
               <p class="text-sm text-gray-500" id="drop-text">Drag & drop or <span class="text-primary font-medium">browse</span></p>
-              <p class="text-xs text-gray-400 mt-1">Max 10MB</p>
+              <p class="text-xs text-gray-400 mt-1">PDF, images, Office, text, or ZIP. Max 10MB.</p>
             </div>
             <input type="file" name="file" id="file-input" required class="hidden">
             <div id="file-preview" class="hidden items-center gap-2 p-3 bg-gray-50 rounded-lg">
@@ -276,11 +280,11 @@
                       d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                   </svg>
                   <div class="min-w-0">
-                    <p class="text-xs font-medium text-gray-900 truncate">{{ basename($file->file_path) }}</p>
+                    <p class="text-xs font-medium text-gray-900 truncate">Project file #{{ $file->id }}</p>
                     <p class="text-xs text-gray-400">{{ $file->created_at->diffForHumans() }}</p>
                   </div>
                 </div>
-                <a href="{{ route('client-dashboard.download-file', $file->id) }}"
+                <a href="{{ route('client-dashboard.download-file', [$project->id, $file->id]) }}"
                    class="flex-shrink-0 text-xs text-primary hover:text-primary/80 font-medium ml-2">
                   Download
                 </a>
