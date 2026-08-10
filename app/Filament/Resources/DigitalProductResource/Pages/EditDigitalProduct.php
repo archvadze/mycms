@@ -13,7 +13,9 @@ class EditDigitalProduct extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()
+                ->authorize(fn(): bool => DigitalProductResource::canDelete($this->record))
+                ->visible(fn(): bool => DigitalProductResource::canDelete($this->record)),
         ];
     }
 }

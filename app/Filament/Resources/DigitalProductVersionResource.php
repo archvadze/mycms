@@ -9,13 +9,40 @@ use Filament\Actions;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Tables;
 use Filament\Tables\Table;
 use App\Support\AdminAccess;
+use Closure;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class DigitalProductVersionResource extends Resource
 {
     protected static ?string $model = DigitalProductVersion::class;
+
+    private const ALLOWED_FILE_MIME_EXTENSIONS = [
+        'application/pdf' => 'pdf',
+        'application/zip' => 'zip',
+        'application/x-zip-compressed' => 'zip',
+        'application/msword' => 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.ms-excel' => 'xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'text/plain' => 'txt',
+    ];
+
+    private const DANGEROUS_ORIGINAL_EXTENSIONS = [
+        'bash',
+        'phar',
+        'php',
+        'phtml',
+        'sh',
+    ];
 
     public static function getNavigationGroup(): ?string { return 'Content'; }
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-duplicate';
@@ -25,6 +52,74 @@ class DigitalProductVersionResource extends Resource
     public static function canViewAny(): bool
     {
         return AdminAccess::canManageContent() || AdminAccess::canManageOrders();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return $record instanceof DigitalProductVersion
+            && static::canViewAny()
+            && ! $record->purchases()->exists();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function fileUploadDirectory(?int $productId): string
+    {
+        return 'digital-products/' . ($productId ?: 'unassigned');
+    }
+
+    public static function safeStoredFilename(string $extension): string
+    {
+        $extension = Str::lower(trim($extension, '.'));
+
+        return (string) Str::uuid() . ($extension ? ".{$extension}" : '');
+    }
+
+    public static function safeStoredFilenameForUpload($file): string
+    {
+        return static::safeStoredFilename(static::validatedServerExtension($file) ?? '');
+    }
+
+    public static function validateUploadFilename($file): ?string
+    {
+        if (! is_object($file)) {
+            return null;
+        }
+
+        if (static::hasDangerousOriginalExtension($file)) {
+            return 'This file extension is not allowed.';
+        }
+
+        return static::validatedServerExtension($file) === null
+            ? 'This file type is not allowed.'
+            : null;
+    }
+
+    private static function validatedServerExtension($file): ?string
+    {
+        if (! is_object($file) || ! method_exists($file, 'getMimeType')) {
+            return null;
+        }
+
+        $mime = $file->getMimeType();
+
+        return is_string($mime) ? (self::ALLOWED_FILE_MIME_EXTENSIONS[$mime] ?? null) : null;
+    }
+
+    private static function hasDangerousOriginalExtension($file): bool
+    {
+        if (! is_object($file) || ! method_exists($file, 'getClientOriginalExtension')) {
+            return false;
+        }
+
+        return in_array(
+            Str::lower($file->getClientOriginalExtension()),
+            self::DANGEROUS_ORIGINAL_EXTENSIONS,
+            true
+        );
     }
 
     public static function form(Schema $schema): Schema
@@ -55,8 +150,26 @@ class DigitalProductVersionResource extends Resource
                 ->schema([
                     Forms\Components\FileUpload::make('file_path')
                         ->label('Product File')
-                        ->disk('public')
-                        ->directory('products/files')
+                        ->disk('local')
+                        ->directory(fn(Get $get): string => static::fileUploadDirectory(
+                            $get('digital_product_id') ? (int) $get('digital_product_id') : null
+                        ))
+                        ->getUploadedFileNameForStorageUsing(
+                            fn($file): string => static::safeStoredFilenameForUpload($file)
+                        )
+                        ->acceptedFileTypes(array_keys(self::ALLOWED_FILE_MIME_EXTENSIONS))
+                        ->rules([
+                            fn(): Closure => function (string $attribute, $value, Closure $fail): void {
+                                $error = static::validateUploadFilename($value);
+
+                                if ($error !== null) {
+                                    $fail($error);
+                                }
+                            },
+                        ])
+                        ->maxSize(10240)
+                        ->previewable(false)
+                        ->downloadable(false)
                         ->columnSpanFull(),
                 ]),
         ]);
@@ -83,11 +196,21 @@ class DigitalProductVersionResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->actions([
                 Actions\EditAction::make(),
-                Actions\DeleteAction::make(),
+                Actions\DeleteAction::make()
+                    ->authorize(fn(DigitalProductVersion $record): bool => static::canDelete($record))
+                    ->visible(fn(DigitalProductVersion $record): bool => static::canDelete($record)),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
-                    Actions\DeleteBulkAction::make(),
+                    Actions\BulkAction::make('delete')
+                        ->label('Delete selected')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->authorize(fn(): bool => static::canDeleteAny())
+                        ->action(fn(Collection $records): mixed => $records->each(
+                            fn(DigitalProductVersion $record) => static::canDelete($record) ? $record->delete() : null
+                        )),
                 ]),
             ]);
     }

@@ -90,6 +90,7 @@ class ClientFinancialWorkflowTest extends TestCase
 
     public function test_purchase_download_requires_owned_valid_purchase_and_existing_file(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
 
         [$owner] = $this->clientUser();
@@ -128,6 +129,7 @@ class ClientFinancialWorkflowTest extends TestCase
 
     public function test_purchase_download_uses_purchased_version_and_preserves_unpublished_entitlement(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
 
         [$owner] = $this->clientUser();
@@ -171,6 +173,7 @@ class ClientFinancialWorkflowTest extends TestCase
 
     public function test_ineligible_purchase_downloads_do_not_deliver_file(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
 
         [$owner] = $this->clientUser();
@@ -198,6 +201,7 @@ class ClientFinancialWorkflowTest extends TestCase
 
     public function test_purchase_download_get_does_not_mutate_or_download(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
 
         [$owner] = $this->clientUser();
@@ -217,6 +221,7 @@ class ClientFinancialWorkflowTest extends TestCase
 
     public function test_purchase_download_limit_does_not_go_negative(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
 
         [$owner] = $this->clientUser();

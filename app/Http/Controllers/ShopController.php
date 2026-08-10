@@ -75,7 +75,15 @@ public function download(Purchase $purchase)
         abort(404);
     }
 
-    if (! Storage::disk('public')->exists($purchase->version->file_path)) {
+    $downloadDisk = null;
+
+    if (Storage::disk('local')->exists($purchase->version->file_path)) {
+        $downloadDisk = 'local';
+    } elseif (Storage::disk('public')->exists($purchase->version->file_path)) {
+        $downloadDisk = 'public';
+    }
+
+    if (! $downloadDisk) {
         abort(404);
     }
 
@@ -114,7 +122,7 @@ public function download(Purchase $purchase)
         . $safeVersion
         . ($extension ? '.' . $extension : '');
 
-    return Storage::disk('public')->download($purchase->version->file_path, $downloadName);
+    return Storage::disk($downloadDisk)->download($purchase->version->file_path, $downloadName);
 }
 public function checkout(string $slug)
 {

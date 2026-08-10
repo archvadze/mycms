@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use RuntimeException;
 use Illuminate\Support\Str;
 
 class DigitalProduct extends Model
@@ -36,24 +37,29 @@ class DigitalProduct extends Model
     ];
 
     protected static function booted()
-{
-    static::creating(function ($product) {
-        if (empty($product->slug)) {
-            $product->slug = Str::slug($product->name);
-        }
-    });
-
-    static::deleting(function ($product) {
-        if ($product->image) {
-            \Storage::disk('public')->delete($product->image);
-        }
-        if ($product->gallery_images) {
-            foreach ($product->gallery_images as $image) {
-                \Storage::disk('public')->delete($image);
+    {
+        static::creating(function ($product) {
+            if (empty($product->slug)) {
+                $product->slug = Str::slug($product->name);
             }
-        }
-    });
-}
+        });
+
+        static::deleting(function ($product) {
+            if ($product->versions()->whereHas('purchases')->exists()) {
+                throw new RuntimeException('Cannot delete a digital product with purchased versions.');
+            }
+
+            if ($product->image) {
+                \Storage::disk('public')->delete($product->image);
+            }
+
+            if ($product->gallery_images) {
+                foreach ($product->gallery_images as $image) {
+                    \Storage::disk('public')->delete($image);
+                }
+            }
+        });
+    }
 
     public function user()
     {

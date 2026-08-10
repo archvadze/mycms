@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use RuntimeException;
 
 class DigitalProductVersion extends Model
 {
@@ -20,6 +21,15 @@ protected $fillable = [
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static function booted()
+    {
+        static::deleting(function (DigitalProductVersion $version): void {
+            if ($version->purchases()->exists()) {
+                throw new RuntimeException('Cannot delete a purchased digital product version.');
+            }
+        });
+    }
 
     public function product()
     {

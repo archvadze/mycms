@@ -14,6 +14,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use App\Support\AdminAccess;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class DigitalProductResource extends Resource
@@ -28,6 +30,20 @@ class DigitalProductResource extends Resource
     public static function canViewAny(): bool
     {
         return AdminAccess::canManageContent() || AdminAccess::canManageOrders();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return $record instanceof DigitalProduct
+            && static::canViewAny()
+            && ! $record->versions()
+                ->whereHas('purchases')
+                ->exists();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::canViewAny();
     }
 
     public static function setPublished(DigitalProduct $product, bool $published): void
@@ -208,7 +224,9 @@ class DigitalProductResource extends Resource
                         ->visible(fn(DigitalProduct $record): bool => (bool) $record->is_published)
                         ->action(fn(DigitalProduct $record) => static::setPublished($record, false)),
                     Actions\EditAction::make(),
-                    Actions\DeleteAction::make(),
+                    Actions\DeleteAction::make()
+                        ->authorize(fn(DigitalProduct $record): bool => static::canDelete($record))
+                        ->visible(fn(DigitalProduct $record): bool => static::canDelete($record)),
                 ])->label('Actions')->icon('heroicon-m-ellipsis-vertical')->iconButton(),
             ])
             ->bulkActions([
@@ -227,7 +245,15 @@ class DigitalProductResource extends Resource
                         ->action(fn($records): mixed => $records->each(
                             fn(DigitalProduct $record) => static::setPublished($record, false)
                         )),
-                    Actions\DeleteBulkAction::make(),
+                    Actions\BulkAction::make('delete')
+                        ->label('Delete selected')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->authorize(fn(): bool => static::canDeleteAny())
+                        ->action(fn(Collection $records): mixed => $records->each(
+                            fn(DigitalProduct $record) => static::canDelete($record) ? $record->delete() : null
+                        )),
                 ]),
             ]);
     }

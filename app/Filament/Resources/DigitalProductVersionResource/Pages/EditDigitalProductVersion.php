@@ -12,6 +12,10 @@ class EditDigitalProductVersion extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [Actions\DeleteAction::make()];
+        return [
+            Actions\DeleteAction::make()
+                ->authorize(fn(): bool => DigitalProductVersionResource::canDelete($this->record))
+                ->visible(fn(): bool => DigitalProductVersionResource::canDelete($this->record)),
+        ];
     }
 }
