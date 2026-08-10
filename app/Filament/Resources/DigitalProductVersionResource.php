@@ -11,6 +11,7 @@ use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
 
 class DigitalProductVersionResource extends Resource
 {
@@ -23,7 +24,7 @@ class DigitalProductVersionResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Admin', 'Editor']);
+        return AdminAccess::canManageContent() || AdminAccess::canManageOrders();
     }
 
     public static function form(Schema $schema): Schema

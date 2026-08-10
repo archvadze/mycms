@@ -12,6 +12,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
 use Illuminate\Support\Str;
 
 class PublicationResource extends Resource
@@ -24,7 +25,7 @@ class PublicationResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Editor']);
+        return AdminAccess::canManageContent();
     }
 
     public static function statusOptions(): array

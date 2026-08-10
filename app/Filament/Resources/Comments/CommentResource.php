@@ -5,6 +5,7 @@ use App\Filament\Resources\Comments\Pages\ListComments;
 use App\Filament\Resources\Comments\Schemas\CommentForm;
 use App\Filament\Resources\Comments\Tables\CommentsTable;
 use App\Models\Comment;
+use App\Support\AdminAccess;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
@@ -50,5 +51,10 @@ class CommentResource extends Resource
     public static function canCreate(): bool
     {
         return false;
+    }
+
+    public static function canViewAny(): bool
+    {
+        return AdminAccess::canManageSupportContent();
     }
 }

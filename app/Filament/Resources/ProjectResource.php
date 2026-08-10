@@ -9,6 +9,7 @@ use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
 class ProjectResource extends Resource
 {
     protected static ?string $model = Project::class;
@@ -18,7 +19,7 @@ class ProjectResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Admin']);
+        return AdminAccess::canManageProjects();
     }
     protected static ?string $navigationLabel = 'Client Projects';
     public static function form(Schema $schema): Schema

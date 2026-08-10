@@ -10,6 +10,7 @@ use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
 
 class SiteSettingResource extends Resource
 {
@@ -20,7 +21,7 @@ class SiteSettingResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole('Super Admin');
+        return AdminAccess::canManageSettings();
     }
     protected static ?string $navigationLabel = 'Site Settings';
 

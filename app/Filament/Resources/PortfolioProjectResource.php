@@ -13,6 +13,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
 use Illuminate\Support\Str;
 
 class PortfolioProjectResource extends Resource
@@ -24,7 +25,7 @@ class PortfolioProjectResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Editor']);
+        return AdminAccess::canManageContent();
     }
     protected static ?string $navigationLabel = 'Portfolio';
 

@@ -1,6 +1,8 @@
 <?php
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Models\User;
+use App\Support\AdminAccess;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -8,6 +10,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Actions;
 use Filament\Actions\Action;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Hash;
 
 class UserForm
@@ -38,10 +41,21 @@ class UserForm
                             ->required()
                             ->native(false),
                         Select::make('roles')
-                            ->relationship('roles', 'name')
+                            ->relationship(
+                                'roles',
+                                'name',
+                                modifyQueryUsing: fn(Builder $query): Builder =>
+                                $query->whereIn('name', AdminAccess::assignableRoles())
+                            )
                             ->multiple()
                             ->preload()
-                            ->native(false),
+                            ->native(false)
+                            ->disabled(
+                                fn(?User $record): bool =>
+                                $record instanceof User
+                                && AdminAccess::isCurrentUser($record)
+                                && $record->hasRole(AdminAccess::SUPER_ADMIN)
+                            ),
                     ]),
                 Section::make('Email Verification')
                     ->columns(2)

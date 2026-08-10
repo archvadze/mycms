@@ -12,6 +12,8 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Cache;
+use App\Support\AdminAccess;
+use App\Support\AdminAudit;
 
 class ManageSettings extends Page implements HasForms
 {
@@ -21,7 +23,7 @@ class ManageSettings extends Page implements HasForms
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->hasRole('Super Admin');
+        return AdminAccess::canManageSettings();
     }
     protected static ?string $navigationLabel = 'Settings';
     protected static ?string $title = 'Site Settings';
@@ -243,9 +245,13 @@ class ManageSettings extends Page implements HasForms
     public function save(): void
     {
         $data = $this->form->getState();
+        $oldSettings = SiteSetting::pluck('value', 'key');
 
         foreach ($data as $key => $value) {
-            SiteSetting::updateOrCreate(['key' => $key], ['value' => $value ?? '']);
+            $newValue = $value ?? '';
+
+            SiteSetting::updateOrCreate(['key' => $key], ['value' => $newValue]);
+            AdminAudit::logSettingChange($key, $oldSettings->get($key), $newValue);
         }
 
         // Module toggles — MenuItem-ები განახლდეს

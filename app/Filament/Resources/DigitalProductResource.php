@@ -13,6 +13,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
 use Illuminate\Support\Str;
 
 class DigitalProductResource extends Resource
@@ -26,7 +27,7 @@ class DigitalProductResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Admin', 'Editor']);
+        return AdminAccess::canManageContent() || AdminAccess::canManageOrders();
     }
 
     public static function setPublished(DigitalProduct $product, bool $published): void

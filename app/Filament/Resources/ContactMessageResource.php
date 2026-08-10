@@ -10,6 +10,7 @@ use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
 
 class ContactMessageResource extends Resource
 {
@@ -21,7 +22,7 @@ class ContactMessageResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Admin', 'Support']);
+        return AdminAccess::canManageInbox();
     }
 
     public static function form(Schema $schema): Schema

@@ -11,6 +11,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Actions;
 use Illuminate\Support\Carbon;
+use App\Support\AdminAccess;
 
 class SubscriptionResource extends Resource
 {
@@ -22,6 +23,11 @@ class SubscriptionResource extends Resource
     public static function getNavigationGroup(): ?string
     {
         return 'Subscriptions';
+    }
+
+    public static function canViewAny(): bool
+    {
+        return AdminAccess::canManageSubscriptions();
     }
 
     public static function getNavigationBadge(): ?string

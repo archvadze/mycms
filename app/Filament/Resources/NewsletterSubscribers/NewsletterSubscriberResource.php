@@ -17,6 +17,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Database\Eloquent\Collection;
+use App\Support\AdminAccess;
 
 class NewsletterSubscriberResource extends Resource
 {
@@ -26,7 +27,7 @@ class NewsletterSubscriberResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Editor']);
+        return AdminAccess::canManageContent();
     }
 
     public static function getNavigationGroup(): ?string

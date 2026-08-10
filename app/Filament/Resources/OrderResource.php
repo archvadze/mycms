@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Spatie\Activitylog\Models\Activity;
+use App\Support\AdminAccess;
 
 class OrderResource extends Resource
 {
@@ -27,7 +28,7 @@ class OrderResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Admin']) ?? false;
+        return AdminAccess::canManageOrders();
     }
 
     public static function canCreate(): bool

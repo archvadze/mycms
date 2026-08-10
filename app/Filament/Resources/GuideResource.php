@@ -12,6 +12,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
 use Illuminate\Support\Str;
 
 class GuideResource extends Resource
@@ -24,7 +25,7 @@ class GuideResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Support']);
+        return AdminAccess::canManageContent();
     }
 
     public static function setPublished(Guide $guide, bool $published): void

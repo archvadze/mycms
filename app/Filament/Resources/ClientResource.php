@@ -11,6 +11,7 @@ use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
 
 class ClientResource extends Resource
 {
@@ -22,7 +23,7 @@ class ClientResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Admin']);
+        return AdminAccess::canManageClients();
     }
 
     private static function countries(): array

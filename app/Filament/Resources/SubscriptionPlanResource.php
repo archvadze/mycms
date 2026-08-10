@@ -10,6 +10,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Actions;
+use App\Support\AdminAccess;
 
 class SubscriptionPlanResource extends Resource
 {
@@ -21,6 +22,11 @@ class SubscriptionPlanResource extends Resource
     public static function getNavigationGroup(): ?string
     {
         return 'Subscriptions';
+    }
+
+    public static function canViewAny(): bool
+    {
+        return AdminAccess::canManageSubscriptions();
     }
 
     public static function form(Schema $schema): Schema

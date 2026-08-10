@@ -10,6 +10,9 @@ use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 
 class TeamResource extends Resource
 {
@@ -21,7 +24,27 @@ class TeamResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole('Super Admin');
+        return AdminAccess::canManageUsers();
+    }
+
+    public static function canView(Model $record): bool
+    {
+        return AdminAccess::canManageUsers();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return AdminAccess::canManageUsers();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return $record instanceof User && AdminAccess::canDeleteUser($record);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return AdminAccess::canManageUsers();
     }
 
     // მხოლოდ team roles — Client გამოვრიცხოთ
@@ -47,12 +70,10 @@ class TeamResource extends Resource
                         ->default('active')->required(),
                     Forms\Components\Select::make('roles')
                         ->label('Role')
-                        ->options([
-                            'Admin'      => 'Admin',
-                            'Super Admin'=> 'Super Admin',
-                            'Editor'     => 'Editor',
-                            'Support'    => 'Support',
-                        ])
+                        ->options(fn(): array => array_combine(
+                            AdminAccess::assignableTeamRoles(),
+                            AdminAccess::assignableTeamRoles(),
+                        ))
                         ->multiple(false)
                         ->required(),
                 ])->columns(2)->columnSpanFull(),
@@ -122,7 +143,19 @@ class TeamResource extends Resource
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
-                    Actions\DeleteBulkAction::make(),
+                    Actions\BulkAction::make('delete')
+                        ->label('Delete selected')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->authorize(fn(): bool => static::canDeleteAny())
+                        ->action(function (Collection $records): void {
+                            $records->each(function (User $record): void {
+                                if (static::canDelete($record)) {
+                                    $record->delete();
+                                }
+                            });
+                        }),
                 ]),
             ]);
     }

@@ -18,6 +18,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use App\Support\AdminAccess;
 
 
 
@@ -42,11 +44,32 @@ class EmailMessageResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole([
-            'Super Admin',
-            'Admin',
-            'Support',
-        ]) ?? false;
+        return AdminAccess::canManageInbox();
+    }
+
+    public static function canView(Model $record): bool
+    {
+        return AdminAccess::canManageInbox();
+    }
+
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return AdminAccess::canManageInbox();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return false;
     }
 
     public static function getNavigationBadge(): ?string

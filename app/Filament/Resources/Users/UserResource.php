@@ -7,6 +7,8 @@ use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\Schemas\UserForm;
 use App\Filament\Resources\Users\Tables\UsersTable;
 use App\Models\User;
+use App\Support\AdminAccess;
+use Illuminate\Database\Eloquent\Model;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
@@ -19,23 +21,32 @@ class UserResource extends Resource
 
     public static function canViewAny(): bool
     {
-        // Super Admin და Admin სრული წვდომა, Support მხოლოდ კითხვა
-        return auth()->user()?->hasRole(['Super Admin', 'Support']);
+        return AdminAccess::canManageUsers();
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Admin']);
+        return AdminAccess::canManageUsers();
     }
 
-    public static function canEdit($record): bool
+    public static function canView(Model $record): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Admin']);
+        return AdminAccess::canManageUsers();
     }
 
-    public static function canDelete($record): bool
+    public static function canEdit(Model $record): bool
     {
-        return auth()->user()?->hasRole(['Super Admin']);
+        return AdminAccess::canManageUsers();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return $record instanceof User && AdminAccess::canDeleteUser($record);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return AdminAccess::canManageUsers();
     }
 
     public static function getNavigationGroup(): ?string

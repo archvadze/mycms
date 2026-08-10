@@ -10,6 +10,7 @@ use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
 
 class ServiceResource extends Resource
 {
@@ -21,7 +22,7 @@ class ServiceResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole(['Super Admin', 'Editor']);
+        return AdminAccess::canManageContent();
     }
 
     public static function setActive(Service $service, bool $active): void

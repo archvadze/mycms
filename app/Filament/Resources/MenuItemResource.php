@@ -10,6 +10,7 @@ use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Support\AdminAccess;
 
 class MenuItemResource extends Resource
 {
@@ -21,7 +22,7 @@ class MenuItemResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole('Super Admin');
+        return AdminAccess::canManageSystemContent();
     }
 
     public static function setActive(MenuItem $menuItem, bool $active): void

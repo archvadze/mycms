@@ -11,6 +11,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 use Filament\Models\Contracts\FilamentUser;
 use App\Enums\UserStatus;
+use App\Support\AdminAccess;
 
 class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVerifyEmail, FilamentUser
 {
@@ -63,9 +64,7 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
 
     public function canAccessPanel(\Filament\Panel $panel): bool
     {
-        return $this->hasRole(['Super Admin', 'Admin', 'Editor', 'Support'])
-            && $this->status === 'active'
-            && $this->hasVerifiedEmail();
+        return AdminAccess::canAccessPanel($this);
     }
 
     public function isActive(): bool { return $this->status === 'active'; }

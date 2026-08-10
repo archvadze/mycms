@@ -10,6 +10,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Schemas\Components\Section;
+use App\Support\AdminAccess;
 
 class PageResource extends Resource
 {
@@ -21,7 +22,7 @@ class PageResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole('Super Admin');
+        return AdminAccess::canManageSystemContent();
     }
 
     public static function statusOptions(): array
