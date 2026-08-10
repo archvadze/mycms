@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+    echo "Usage: $0 /path/to/output-directory" >&2
+    exit 64
+fi
+
+APP_DIR="/opt/mycms/app"
+ENV_FILE="${APP_DIR}/.env.production"
+DB_CONTAINER="mycms-mariadb"
+OUT_DIR="$1"
+TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+RESOLVED_OUT_DIR="$(realpath -m -- "${OUT_DIR}")"
+PRIVATE_STORAGE_DIR="$(realpath -m -- "${APP_DIR}/storage/app/private")"
+PUBLIC_STORAGE_DIR="$(realpath -m -- "${APP_DIR}/storage/app/public")"
+RESOLVED_APP_DIR="$(realpath -m -- "${APP_DIR}")"
+
+case "${RESOLVED_OUT_DIR}" in
+    "${RESOLVED_APP_DIR}"|"${RESOLVED_APP_DIR}"/*)
+        echo "Refusing output directory inside application tree: ${RESOLVED_OUT_DIR}" >&2
+        echo "Use a staging path outside ${RESOLVED_APP_DIR}, for example /opt/mycms/backups/manual." >&2
+        exit 1
+        ;;
+    "${PRIVATE_STORAGE_DIR}"|"${PRIVATE_STORAGE_DIR}"/*)
+        echo "Refusing output directory inside private storage: ${RESOLVED_OUT_DIR}" >&2
+        exit 1
+        ;;
+    "${PUBLIC_STORAGE_DIR}"|"${PUBLIC_STORAGE_DIR}"/*)
+        echo "Refusing output directory inside public storage: ${RESOLVED_OUT_DIR}" >&2
+        exit 1
+        ;;
+esac
+
+BACKUP_DIR="${RESOLVED_OUT_DIR}/mycms-${TIMESTAMP}"
+
+mkdir -p "${BACKUP_DIR}"
+
+if [[ ! -f "${ENV_FILE}" ]]; then
+    echo "Missing ${ENV_FILE}" >&2
+    exit 1
+fi
+
+set -a
+. "${ENV_FILE}"
+set +a
+
+: "${DB_USERNAME:?DB_USERNAME is required}"
+: "${DB_PASSWORD:?DB_PASSWORD is required}"
+: "${DB_DATABASE:?DB_DATABASE is required}"
+
+echo "Writing backup set to ${BACKUP_DIR}"
+
+docker exec -e MYSQL_PWD="${DB_PASSWORD}" "${DB_CONTAINER}" \
+    mariadb-dump \
+    --single-transaction \
+    --routines \
+    --triggers \
+    --events \
+    --default-character-set=utf8mb4 \
+    -u "${DB_USERNAME}" \
+    "${DB_DATABASE}" \
+    | gzip -9 > "${BACKUP_DIR}/database.sql.gz"
+
+tar -C "${APP_DIR}" -czf "${BACKUP_DIR}/storage-private.tar.gz" storage/app/private
+tar -C "${APP_DIR}" -czf "${BACKUP_DIR}/storage-public.tar.gz" storage/app/public
+
+test -s "${BACKUP_DIR}/database.sql.gz"
+test -s "${BACKUP_DIR}/storage-private.tar.gz"
+test -s "${BACKUP_DIR}/storage-public.tar.gz"
+gzip -t "${BACKUP_DIR}/database.sql.gz"
+tar -tzf "${BACKUP_DIR}/storage-private.tar.gz" >/dev/null
+tar -tzf "${BACKUP_DIR}/storage-public.tar.gz" >/dev/null
+
+cat > "${BACKUP_DIR}/README.txt" <<EOF
+Backup created: ${TIMESTAMP}
+App directory: ${APP_DIR}
+Database container: ${DB_CONTAINER}
+
+Contents:
+- database.sql.gz
+- storage-private.tar.gz
+- storage-public.tar.gz
+
+This script does not back up secrets and does not upload off-server.
+Back up ${ENV_FILE} separately using encrypted storage.
+EOF
+
+echo "Backup validation completed."
+echo "Copy ${BACKUP_DIR} to encrypted off-server storage."
