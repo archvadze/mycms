@@ -36,16 +36,40 @@
             {{ $homePage->hero_subtitle ?? 'Professional web design and development services that transform your vision into reality' }}
         </p>
 
-        @if($homePage && $homePage->hero_button_text)
-        <a href="{{ $homePage->hero_button_url ?? route('order.create') }}"
-           class="inline-flex items-center px-8 py-4 text-lg font-medium text-white bg-primary rounded-lg hover:bg-primary/90">
-            {{ $homePage->hero_button_text }}
-        </a>
-        @endif
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a href="{{ $homePage->hero_button_url ?? route('order.create') }}"
+               class="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-white bg-primary rounded-lg hover:bg-primary/90">
+                {{ $homePage->hero_button_text ?? 'Start a Project' }}
+            </a>
+            <a href="{{ route('services') }}"
+               class="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-white border border-white/30 rounded-lg hover:bg-white/10">
+                View Services
+            </a>
+        </div>
     </div>
 </section>
 
-
+<section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div class="rounded-xl border border-gray-100 p-6">
+                <p class="text-sm font-semibold text-primary">1. Choose direction</p>
+                <h2 class="mt-2 text-lg font-bold text-gray-900">Review services and proof</h2>
+                <p class="mt-2 text-sm leading-6 text-gray-600">Compare the active services and published portfolio examples already available on the site.</p>
+            </div>
+            <div class="rounded-xl border border-gray-100 p-6">
+                <p class="text-sm font-semibold text-primary">2. Start a project</p>
+                <h2 class="mt-2 text-lg font-bold text-gray-900">Send the project request</h2>
+                <p class="mt-2 text-sm leading-6 text-gray-600">Use the existing project request form so scope, budget, timeline, and contact details stay together.</p>
+            </div>
+            <div class="rounded-xl border border-gray-100 p-6">
+                <p class="text-sm font-semibold text-primary">3. Track progress</p>
+                <h2 class="mt-2 text-lg font-bold text-gray-900">Use your client dashboard</h2>
+                <p class="mt-2 text-sm leading-6 text-gray-600">Accepted work appears in the Client Portal with project messages, files, and order details.</p>
+            </div>
+        </div>
+    </div>
+</section>
 
 @php
 $sectionOrder = $homePage->section_order ?? [];
@@ -159,7 +183,7 @@ asort($order);
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             @foreach($featuredServices->take(4) as $service)
             @if($loop->index % 2 === 0)
-            <div class="grid grid-cols-2 rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+            <div class="grid grid-cols-1 sm:grid-cols-2 rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
                 <div class="p-8 flex flex-col justify-center">
                     <div class="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 text-primary mb-4">
                         <i class="fas fa-{{ $service->icon ?? 'code' }} text-lg"></i>
@@ -167,7 +191,7 @@ asort($order);
                     <h3 class="text-xl font-bold text-gray-900 mb-2">{{ $service->name }}</h3>
                     <p class="text-sm text-gray-600 leading-relaxed mb-4">{{ Str::limit($service->description, 100) }}</p>
                     <a href="{{ route('services') }}" class="text-sm font-medium text-primary hover:text-primary/80 inline-flex items-center gap-1">
-                        Learn more <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        View Services <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </a>
                 </div>
                 <div class="bg-gray-100 flex items-center justify-center min-h-48">
@@ -181,8 +205,8 @@ asort($order);
                 </div>
             </div>
             @else
-            <div class="grid grid-cols-2 rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                <div class="bg-gray-100 flex items-center justify-center min-h-48">
+            <div class="grid grid-cols-1 sm:grid-cols-2 rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div class="bg-gray-100 flex items-center justify-center min-h-48 sm:order-1">
                     @if($service->image)
                         <img src="{{ asset('storage/'.$service->image) }}" alt="{{ $service->name }}" class="w-full h-full object-cover">
                     @else
@@ -191,14 +215,14 @@ asort($order);
                         </div>
                     @endif
                 </div>
-                <div class="p-8 flex flex-col justify-center">
+                <div class="p-8 flex flex-col justify-center sm:order-2">
                     <div class="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 text-primary mb-4">
                         <i class="fas fa-{{ $service->icon ?? 'code' }} text-lg"></i>
                     </div>
                     <h3 class="text-xl font-bold text-gray-900 mb-2">{{ $service->name }}</h3>
                     <p class="text-sm text-gray-600 leading-relaxed mb-4">{{ Str::limit($service->description, 100) }}</p>
                     <a href="{{ route('services') }}" class="text-sm font-medium text-primary hover:text-primary/80 inline-flex items-center gap-1">
-                        Learn more <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        View Services <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </a>
                 </div>
             </div>

@@ -102,6 +102,9 @@
                             </button>
                         </form>
                     @else
+                        <a href="{{ route('order.create') }}" class="text-sm font-medium text-white bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-md transition-colors">
+                            Start a Project
+                        </a>
                         <a href="{{ route('login') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
                             Login
                         </a>
@@ -163,6 +166,9 @@
                             </button>
                         </form>
                     @else
+                        <a href="{{ route('order.create') }}" class="block py-2 text-sm font-medium text-gray-600">
+                            Start a Project
+                        </a>
                         <a href="{{ route('login') }}" class="block py-2 text-sm font-medium text-gray-600">
                             Login
                         </a>

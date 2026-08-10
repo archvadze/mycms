@@ -35,13 +35,14 @@
       </div>
 
       {{-- Search --}}
-      <form method="GET" action="{{ route('shop.index') }}" class="flex gap-2">
+      <form method="GET" action="{{ route('shop.index') }}" class="flex w-full gap-2 sm:w-auto">
         @if(request('category'))
           <input type="hidden" name="category" value="{{ request('category') }}">
         @endif
-        <input type="text" name="search" value="{{ request('search') }}"
+        <label for="shop-search" class="sr-only">Search products</label>
+        <input id="shop-search" type="text" name="search" value="{{ request('search') }}"
                placeholder="Search..."
-               class="border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-primary">
+               class="min-w-0 flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-primary">
         <button type="submit" class="bg-primary text-white px-4 py-2 rounded-lg text-sm">Search</button>
       </form>
     </div>
@@ -92,7 +93,7 @@
             </div>
             <a href="{{ route('shop.show', $product->slug) }}"
                class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-              View Details
+              View Product
             </a>
           </div>
         </div>
@@ -106,8 +107,12 @@
     </div>
 
     @else
-    <div class="text-center py-20">
-      <p class="text-gray-500 text-lg">No products found.</p>
+    <div class="text-center py-20 border border-dashed border-gray-200 rounded-xl">
+      <h2 class="text-lg font-semibold text-gray-900">No products found</h2>
+      <p class="mt-2 text-gray-500">Try a different search or category. Published products will appear here when available.</p>
+      <a href="{{ route('shop.index') }}" class="mt-4 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-medium h-10 px-6">
+        Clear Filters
+      </a>
     </div>
     @endif
 

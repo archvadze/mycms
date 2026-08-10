@@ -71,6 +71,16 @@
       @endforeach
     </div>
 
+    @if($guides->isEmpty())
+      <div class="rounded-xl border border-dashed border-gray-200 p-10 text-center">
+        <h2 class="text-lg font-semibold text-gray-900">No guides published yet</h2>
+        <p class="mt-2 text-gray-500">Published guides will appear here when new resources are available.</p>
+        <a href="{{ route('services') }}" class="mt-4 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-medium h-10 px-6">
+          View Services
+        </a>
+      </div>
+    @endif
+
     @if($guides->hasPages())
     <div class="mt-12 flex justify-center">
       {{ $guides->links() }}

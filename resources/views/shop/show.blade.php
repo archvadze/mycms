@@ -138,11 +138,20 @@
         @if($product->versions->count())
         <div class="mb-6 p-4 bg-gray-50 rounded-lg">
           <p class="text-sm text-gray-500">
-            Latest version:
+            Current downloadable version:
             <span class="font-medium text-gray-900">{{ $product->versions->first()->version_number }}</span>
           </p>
         </div>
         @endif
+
+        <div class="mb-6 rounded-lg border border-gray-100 p-4">
+          <h2 class="text-sm font-semibold text-gray-900">What you receive</h2>
+          <ul class="mt-2 space-y-1 text-sm text-gray-600">
+            <li>Protected access to the purchased product version.</li>
+            <li>Download availability based on your purchase limits and expiry date.</li>
+            <li>Purchase history and downloads in your client dashboard.</li>
+          </ul>
+        </div>
 
         {{-- Action Buttons --}}
         <div class="flex flex-wrap gap-3 mb-8">
@@ -169,7 +178,7 @@
             @auth
               <a href="{{ route('shop.checkout', $product->slug) }}"
                  class="inline-flex items-center gap-2 bg-primary text-white px-8 py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors">
-                Buy Now — ${{ number_format($product->price, 2) }}
+                Purchase — ${{ number_format($product->price, 2) }}
               </a>
             @else
               <a href="{{ route('login') }}"

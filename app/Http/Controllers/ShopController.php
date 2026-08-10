@@ -45,7 +45,7 @@ class ShopController extends Controller
     {
         $product = DigitalProduct::where('slug', $slug)
             ->where('is_published', true)
-            ->with('versions')
+            ->with(['versions' => fn($query) => $query->where('is_active', true)->latest()])
             ->firstOrFail();
 
         $hasPurchased = false;

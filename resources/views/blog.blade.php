@@ -55,7 +55,7 @@
             </div>
             <a href="{{ route('blog.show', $publication->slug) }}"
                class="inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors">
-              Read more
+              Read Publication
               <svg class="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
               </svg>
@@ -65,6 +65,16 @@
       </article>
       @endforeach
     </div>
+
+    @if($publications->isEmpty())
+      <div class="rounded-xl border border-dashed border-gray-200 p-10 text-center">
+        <h2 class="text-lg font-semibold text-gray-900">No publications available</h2>
+        <p class="mt-2 text-gray-500">Published articles and updates will appear here.</p>
+        <a href="{{ route('contact') }}" class="mt-4 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-medium h-10 px-6">
+          Contact Us
+        </a>
+      </div>
+    @endif
 
     @if($publications->hasPages())
     <div class="mt-12 flex justify-center">

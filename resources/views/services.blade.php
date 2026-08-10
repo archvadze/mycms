@@ -14,6 +14,10 @@
       <p class="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
         {{ optional($page)->page_subtitle ?? optional($page)->hero_subtitle ?? 'Comprehensive solutions to bring your digital vision to life' }}
       </p>
+      <a href="{{ route('order.create') }}"
+         class="mt-6 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium h-10 px-6">
+        Start a Project
+      </a>
     </div>
 
     {{-- Services — Alternating Layout --}}
@@ -21,7 +25,6 @@
       @foreach($services as $index => $service)
 
       @if($index % 2 === 0)
-      {{-- ლუწი: ტექსტი მარცხნივ, სურათი მარჯვნივ --}}
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         <div class="flex flex-col justify-center">
           <div class="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 text-primary mb-6">
@@ -35,7 +38,7 @@
           <div>
             <a href="{{ auth()->check() && !auth()->user()->hasVerifiedEmail() ? route('verification.notice') : route('order.create') . '?service=' . $service->id }}"
                class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium h-10 px-6">
-              {{ $service->button_text ?? 'Get Started' }}
+              Start a Project
             </a>
           </div>
         </div>
@@ -52,7 +55,6 @@
       </div>
 
       @else
-      {{-- კენტი: სურათი მარცხნივ, ტექსტი მარჯვნივ --}}
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         <div class="bg-gray-100 rounded-2xl aspect-video flex items-center justify-center overflow-hidden">
           @if($service->image)
@@ -76,7 +78,7 @@
           <div>
             <a href="{{ auth()->check() && !auth()->user()->hasVerifiedEmail() ? route('verification.notice') : route('order.create') . '?service=' . $service->id }}"
                class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium h-10 px-6">
-              {{ $service->button_text ?? 'Get Started' }}
+              Start a Project
             </a>
           </div>
         </div>
@@ -86,8 +88,12 @@
       @endforeach
 
       @if($services->isEmpty())
-        <div class="text-center py-16">
-          <p class="text-gray-500">No services available at the moment.</p>
+        <div class="text-center py-16 border border-dashed border-gray-200 rounded-xl">
+          <h2 class="text-lg font-semibold text-gray-900">Services are being updated</h2>
+          <p class="mt-2 text-gray-500">Please contact us if you want to discuss a project while the service list is unavailable.</p>
+          <a href="{{ route('contact') }}" class="mt-4 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-medium h-10 px-6">
+            Contact Us
+          </a>
         </div>
       @endif
     </div>

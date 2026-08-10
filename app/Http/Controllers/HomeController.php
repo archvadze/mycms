@@ -26,6 +26,7 @@ class HomeController extends Controller
 
         $featuredProjects = Cache::remember('home.projects.' . ($homePage->portfolio_items_count ?? 6), 3600, function () use ($homePage) {
             return PortfolioProject::with('images')
+                ->where('is_published', true)
                 ->where('is_featured', true)
                 ->take($homePage->portfolio_items_count ?? 6)
                 ->get();
@@ -41,6 +42,7 @@ class HomeController extends Controller
 
         $testimonials = Cache::remember('home.testimonials.' . ($homePage->testimonials_items_count ?? 3), 3600, function () use ($homePage) {
             return Testimonial::where('is_featured', true)
+                ->where('is_published', true)
                 ->take($homePage->testimonials_items_count ?? 3)
                 ->get();
         });

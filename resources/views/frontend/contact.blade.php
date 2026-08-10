@@ -4,6 +4,12 @@
 @section('description', $page?->seo_description ?? '')
 
 @section('content')
+@php
+  $contactPhone = $page?->contact_phone ?: data_get($siteSettings, 'site_phone');
+  $contactEmail = $page?->contact_email ?: data_get($siteSettings, 'site_email');
+  $contactAddress = $page?->contact_address ?: data_get($siteSettings, 'contact_address');
+  $emailParts = $contactEmail && str_contains($contactEmail, '@') ? explode('@', $contactEmail, 2) : null;
+@endphp
 <main class="pt-24 pb-20">
   <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
 
@@ -12,17 +18,15 @@
       <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4" style="letter-spacing: -0.02em;">
         {{ $page?->page_title ?? $page?->title ?? 'Contact Us' }}
       </h1>
-      @if($page?->page_subtitle)
       <p class="text-xl text-gray-600 leading-relaxed">
-        {{ $page->page_subtitle }}
+        {{ $page?->page_subtitle ?? 'Send a message about a project, service, or support question.' }}
       </p>
-      @endif
     </div>
 
     {{-- Contact Info Cards --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
 
-      @if($page?->contact_phone)
+      @if($contactPhone)
       <div class="flex items-center gap-4 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
         <div class="flex-shrink-0 w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,14 +36,14 @@
         </div>
         <div>
           <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Phone</p>
-          <a href="tel:{{ $page->contact_phone }}" class="text-sm font-semibold text-gray-900 hover:text-primary transition-colors">
-            {{ $page->contact_phone }}
+          <a href="tel:{{ $contactPhone }}" class="text-sm font-semibold text-gray-900 hover:text-primary transition-colors">
+            {{ $contactPhone }}
           </a>
         </div>
       </div>
       @endif
 
-      @if($page?->contact_email)
+      @if($emailParts)
       <div class="flex items-center gap-4 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
         <div class="flex-shrink-0 w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,13 +53,13 @@
         </div>
         <div>
           <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Email</p>
-          <a href="#" class="obfuscated-email text-sm font-semibold text-gray-900 hover:text-primary transition-colors" data-user="{{ explode('@', $page->contact_email)[0] }}" data-domain="{{ explode('@', $page->contact_email)[1] }}">
+          <a href="#" class="obfuscated-email text-sm font-semibold text-gray-900 hover:text-primary transition-colors" data-user="{{ $emailParts[0] }}" data-domain="{{ $emailParts[1] }}">
             <span class="email-text">Email Us</span></a>
         </div>
       </div>
       @endif
 
-      @if($page?->contact_address)
+      @if($contactAddress)
       <div class="flex items-center gap-4 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
         <div class="flex-shrink-0 w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,7 +70,7 @@
         </div>
         <div>
           <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Address</p>
-          <p class="text-sm font-semibold text-gray-900">{{ $page->contact_address }}</p>
+          <p class="text-sm font-semibold text-gray-900">{{ $contactAddress }}</p>
         </div>
       </div>
       @endif
@@ -90,7 +94,8 @@
 
     {{-- Contact Form --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
-      <h2 class="text-xl font-semibold text-gray-900 mb-6">Send us a Message</h2>
+      <h2 class="text-xl font-semibold text-gray-900 mb-2">Send us a message</h2>
+      <p class="text-sm text-gray-500 mb-6">Share the context we need to route your message correctly.</p>
 
       @if(session('success'))
         <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-start gap-3">

@@ -11,9 +11,8 @@ class ServiceController extends Controller
     public function index()
     {
         $services = Service::where('status', true)->get();
-        $page = \App\Models\Page::where('slug', 'services')->first();
-
         $page = Page::where('slug', 'services')->first();
+
         return view('services', compact('services', 'page'));
     }
 }
