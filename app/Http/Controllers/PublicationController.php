@@ -28,6 +28,7 @@ class PublicationController extends Controller
             ])
             ->where('slug', $slug)
             ->where('is_published', true)
+            ->withCount('comments')
             ->firstOrFail();
         $page = \App\Models\Page::where('slug', 'blog')->first();
         return view('blog.show', compact('publication', 'page'));

@@ -14,6 +14,7 @@ use App\Http\Controllers\ClientDashboardController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\DashboardRedirectController;
 use App\Http\Controllers\PollController;
 use Illuminate\Support\Facades\Route;
 
@@ -143,24 +144,7 @@ Route::middleware(['auth', 'verified', 'client'])
     });
 
 
-Route::get('/dashboard', function () {
-    $user = auth()->user();
-
-    if ($user->hasRole([
-        'Super Admin',
-        'Admin',
-        'Editor',
-        'Support',
-    ])) {
-        return redirect('/' . config('agency.admin_path', 'manage'));
-    }
-
-    if (! $user->hasRole('Client')) {
-        $user->assignRole('Client');
-    }
-
-    return redirect()->route('client-dashboard.index');
-})
+Route::get('/dashboard', DashboardRedirectController::class)
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 

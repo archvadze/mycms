@@ -3,7 +3,7 @@ namespace App\Observers;
 
 use App\Models\PortfolioProject;
 use App\Services\ImageService;
-use Illuminate\Support\Facades\Cache;
+use App\Support\HomepageCache;
 
 class PortfolioProjectObserver
 {
@@ -13,7 +13,7 @@ class PortfolioProjectObserver
 
     public function saved(PortfolioProject $project): void
     {
-        Cache::forget('home.projects');
+        HomepageCache::forgetSection('projects');
 
         if ($project->wasChanged('cover_image') && $project->cover_image) {
             $webpPath = $this->imageService->convertToWebP(
@@ -31,6 +31,6 @@ class PortfolioProjectObserver
 
     public function deleted(PortfolioProject $project): void
     {
-        Cache::forget('home.projects');
+        HomepageCache::forgetSection('projects');
     }
 }

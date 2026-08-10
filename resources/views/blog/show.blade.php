@@ -119,7 +119,7 @@
     {{-- Comments --}}
     {{-- Custom Comments Section --}}
 <div class="mt-16 border-t border-gray-100 pt-10 mb-12">
-    <h3 class="text-2xl font-bold text-gray-900 mb-8">Comments ({{ $publication->comments->count() }})</h3>
+    <h3 class="text-2xl font-bold text-gray-900 mb-8">Comments ({{ $publication->comments_count }})</h3>
 
     {{-- Comment Form --}}
 @auth

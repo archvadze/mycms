@@ -4,7 +4,7 @@ namespace App\Observers;
 use App\Models\Publication;
 use App\Services\ImageService;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Cache;
+use App\Support\HomepageCache;
 
 class PublicationObserver
 {
@@ -14,7 +14,7 @@ class PublicationObserver
 
     public function saved(Publication $publication): void
     {
-        Cache::forget('home.publications');
+        HomepageCache::forgetSection('publications');
 
         // cover_image შეიცვალა და არ არის WebP
         if ($publication->wasChanged('cover_image') && $publication->cover_image) {
@@ -40,7 +40,7 @@ class PublicationObserver
 
     public function deleted(Publication $publication): void
     {
-        Cache::forget('home.publications');
+        HomepageCache::forgetSection('publications');
     }
 
     private function pingGoogle(): void

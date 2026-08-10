@@ -3,6 +3,8 @@ namespace App\Http\Controllers;
 
 use App\Models\ProjectMessage;
 use App\Models\ProjectFile;
+use App\Models\Order;
+use App\Models\Project;
 use App\Support\ClientPortalAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,8 +33,6 @@ public function index()
         ->take(5)
         ->get();
 
-    $totalOrders = $client->orders()->count();
-
     $recentMessages = ProjectMessage::whereIn('project_id', $client->projects()->select('id'))
         ->where('sender_id', '!=', Auth::id())
         ->with('project')
@@ -40,12 +40,24 @@ public function index()
         ->take(5)
         ->get();
 
+    $projectCounts = Project::query()
+        ->where('client_id', $client->id)
+        ->selectRaw('status, COUNT(*) as total')
+        ->groupBy('status')
+        ->pluck('total', 'status');
+
+    $orderCounts = Order::query()
+        ->where('client_id', $client->id)
+        ->selectRaw('status, COUNT(*) as total')
+        ->groupBy('status')
+        ->pluck('total', 'status');
+
     $stats = [
-        'total_projects'     => $client->projects()->count(),
-        'active_projects'    => $client->projects()->where('status', 'in_progress')->count(),
-        'completed_projects' => $client->projects()->where('status', 'completed')->count(),
-        'pending_orders' => $client->orders()->where('status', 'pending')->count(),
-        'total_orders' => $totalOrders,
+        'total_projects'     => (int) $projectCounts->sum(),
+        'active_projects'    => (int) ($projectCounts['in_progress'] ?? 0),
+        'completed_projects' => (int) ($projectCounts['completed'] ?? 0),
+        'pending_orders' => (int) ($orderCounts['pending'] ?? 0),
+        'total_orders' => (int) $orderCounts->sum(),
     ];
 
     $purchases = \App\Models\Purchase::where('user_id', auth()->id())

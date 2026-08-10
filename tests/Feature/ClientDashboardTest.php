@@ -54,6 +54,15 @@ class ClientDashboardTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_dashboard_redirect_keeps_client_route_behavior(): void
+    {
+        [$user] = $this->clientUser();
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertRedirect(route('client-dashboard.index'));
+    }
+
     public function test_empty_dashboard_shows_client_next_steps(): void
     {
         [$user] = $this->clientUser();
@@ -196,6 +205,28 @@ class ClientDashboardTest extends TestCase
             ->assertOk()
             ->assertSee('Beta client project')
             ->assertDontSee('Alpha client project');
+    }
+
+    public function test_dashboard_stats_count_owned_records_by_status(): void
+    {
+        [$owner, $ownerClient] = $this->clientUser();
+        [, $otherClient] = $this->clientUser();
+
+        Project::factory()->create(['client_id' => $ownerClient->id, 'status' => 'in_progress']);
+        Project::factory()->create(['client_id' => $ownerClient->id, 'status' => 'completed']);
+        Project::factory()->create(['client_id' => $otherClient->id, 'status' => 'in_progress']);
+
+        Order::factory()->create(['client_id' => $ownerClient->id, 'status' => 'pending']);
+        Order::factory()->create(['client_id' => $ownerClient->id, 'status' => 'accepted']);
+        Order::factory()->create(['client_id' => $otherClient->id, 'status' => 'pending']);
+
+        $this->actingAs($owner)
+            ->get(route('client-dashboard.index'))
+            ->assertOk()
+            ->assertSeeInOrder(['Active Projects', '1'])
+            ->assertSeeInOrder(['Pending Orders', '1'])
+            ->assertSeeInOrder(['Completed', '1'])
+            ->assertSeeInOrder(['Total Orders', '2']);
     }
 
     public function test_dashboard_presents_owned_financial_context_without_internal_identifiers(): void

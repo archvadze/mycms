@@ -16,6 +16,7 @@ use App\Models\Publication;
 use App\Models\Service;
 use App\Models\SiteSetting;
 use App\Models\User;
+use App\Support\HomepageCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -41,6 +42,8 @@ class ContentManagementWorkflowTest extends TestCase
     {
         Http::fake();
         Cache::put('home.publications', 'stale', 3600);
+        $oldSectionKey = HomepageCache::sectionKey('publications', 3);
+        Cache::put($oldSectionKey, 'stale', 3600);
         $this->actingAs($this->userWithRole('Editor'));
 
         $publication = Publication::factory()->draft()->create();
@@ -53,11 +56,15 @@ class ContentManagementWorkflowTest extends TestCase
         $this->assertSame('published', $publication->status);
         $this->assertNotNull($publication->published_at);
         $this->assertFalse(Cache::has('home.publications'));
+        $this->assertNotSame($oldSectionKey, HomepageCache::sectionKey('publications', 3));
+        $this->assertFalse(Cache::has(HomepageCache::sectionKey('publications', 3)));
     }
 
     public function test_service_active_action_keeps_status_fields_aligned_and_clears_home_cache(): void
     {
         Cache::put('home.services', 'stale', 3600);
+        $oldSectionKey = HomepageCache::sectionKey('services', 6);
+        Cache::put($oldSectionKey, 'stale', 3600);
         $this->actingAs($this->userWithRole('Editor'));
 
         $service = Service::factory()->create([
@@ -72,6 +79,56 @@ class ContentManagementWorkflowTest extends TestCase
         $this->assertFalse($service->status);
         $this->assertFalse($service->is_active);
         $this->assertFalse(Cache::has('home.services'));
+        $this->assertNotSame($oldSectionKey, HomepageCache::sectionKey('services', 6));
+        $this->assertFalse(Cache::has(HomepageCache::sectionKey('services', 6)));
+    }
+
+    public function test_homepage_section_cache_invalidation_handles_arbitrary_counts_without_flush(): void
+    {
+        Cache::put('unrelated.cache.key', 'keep-me', 3600);
+
+        $oldLargeCountKey = HomepageCache::sectionKey('services', 25);
+        Cache::put($oldLargeCountKey, 'stale large-count services', 3600);
+
+        HomepageCache::forgetSection('services');
+
+        $this->assertNotSame($oldLargeCountKey, HomepageCache::sectionKey('services', 25));
+        $this->assertFalse(Cache::has(HomepageCache::sectionKey('services', 25)));
+        $this->assertSame('keep-me', Cache::get('unrelated.cache.key'));
+    }
+
+    public function test_homepage_section_content_change_cannot_reuse_stale_cache_for_same_count(): void
+    {
+        $oldSectionKey = HomepageCache::sectionKey('services', 25);
+        Cache::put($oldSectionKey, 'stale service content', 3600);
+
+        Service::factory()->create([
+            'name' => 'Fresh Service',
+            'status' => true,
+            'is_active' => true,
+        ]);
+
+        $this->assertNotSame($oldSectionKey, HomepageCache::sectionKey('services', 25));
+        $this->assertFalse(Cache::has(HomepageCache::sectionKey('services', 25)));
+    }
+
+    public function test_homepage_count_switching_back_does_not_resurrect_old_section_cache(): void
+    {
+        $homePage = Page::create([
+            'title' => 'Home',
+            'slug' => 'home',
+            'content' => '',
+            'services_items_count' => 6,
+        ]);
+
+        $oldSixCountKey = HomepageCache::sectionKey('services', 6);
+        Cache::put($oldSixCountKey, 'stale six-count services', 3600);
+
+        $homePage->update(['services_items_count' => 7]);
+        $homePage->update(['services_items_count' => 6]);
+
+        $this->assertNotSame($oldSixCountKey, HomepageCache::sectionKey('services', 6));
+        $this->assertFalse(Cache::has(HomepageCache::sectionKey('services', 6)));
     }
 
     public function test_menu_item_active_action_clears_menu_cache(): void

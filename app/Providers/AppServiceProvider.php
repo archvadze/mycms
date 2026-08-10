@@ -24,6 +24,7 @@ use App\Models\DigitalProduct;
 use App\Models\Project;
 use App\Models\Guide;
 use App\Models\PortfolioProject;
+use App\Support\HomepageCache;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Auth\Events\Login;
 use App\Listeners\LogSuccessfulLogin;
@@ -75,30 +76,19 @@ class AppServiceProvider extends ServiceProvider
         Project::observe(ProjectObserver::class);
         DigitalProduct::observe(DigitalProductObserver::class);
 
-        Service::saved(fn() => Cache::forget('home.services'));
-        Service::deleted(fn() => Cache::forget('home.services'));
-        Testimonial::saved(fn() => Cache::forget('home.testimonials'));
-        Testimonial::deleted(fn() => Cache::forget('home.testimonials'));
-        Feature::saved(fn() => Cache::forget('home.features'));
-        Feature::deleted(fn() => Cache::forget('home.features'));
+        Service::saved(fn() => HomepageCache::forgetSection('services'));
+        Service::deleted(fn() => HomepageCache::forgetSection('services'));
+        Testimonial::saved(fn() => HomepageCache::forgetSection('testimonials'));
+        Testimonial::deleted(fn() => HomepageCache::forgetSection('testimonials'));
+        Feature::saved(fn() => HomepageCache::forgetSection('features'));
+        Feature::deleted(fn() => HomepageCache::forgetSection('features'));
         SiteSetting::saved(fn() => Cache::forget('site.settings'));
         MenuItem::saved(fn() => Cache::forget('menu.items'));
         MenuItem::deleted(fn() => Cache::forget('menu.items'));
         Page::saved(function ($page) {
             Cache::forget('page.' . $page->slug);
             if ($page->slug === 'home') {
-                Cache::forget('home.page');
-                Cache::forget('home.services');
-                Cache::forget('home.projects');
-                Cache::forget('home.publications');
-                Cache::forget('home.testimonials');
-                // items_count-based cache keys
-                foreach (range(1, 20) as $i) {
-                    Cache::forget('home.services.' . $i);
-                    Cache::forget('home.projects.' . $i);
-                    Cache::forget('home.publications.' . $i);
-                    Cache::forget('home.testimonials.' . $i);
-                }
+                HomepageCache::forgetAll();
             }
         });
 
