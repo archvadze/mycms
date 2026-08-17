@@ -86,10 +86,9 @@ class ClientDashboardTest extends TestCase
             ->get(route('home'))
             ->assertOk()
             ->assertSee(route('client-dashboard.index', absolute: false), false)
-            ->assertSee(route('order.create', absolute: false), false)
-            ->assertSee(route('shop.index', absolute: false), false)
-            ->assertSee(route('subscription.plans', absolute: false), false)
-            ->assertSee(route('client-dashboard.profile', absolute: false), false);
+            ->assertSee($user->name)
+            ->assertSee(route('client-dashboard.profile', absolute: false), false)
+            ->assertDontSee('Subscription');
     }
 
     public function test_client_without_client_record_does_not_see_client_portal_navigation(): void

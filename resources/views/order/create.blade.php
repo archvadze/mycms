@@ -8,10 +8,10 @@
 
     <div class="text-center mb-12">
       <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4" style="letter-spacing: -0.02em;">
-        Start a Project
+        Start your project
       </h1>
       <p class="text-xl text-gray-600 leading-relaxed">
-        Tell us what you need so the request, estimate, and project tracking can stay connected to your account.
+        Fill out the form below and we'll get back to you shortly
       </p>
     </div>
 
@@ -68,7 +68,7 @@
               </label>
               <a href="{{ route('password.request') }}" class="text-sm text-primary hover:text-primary/80">Forgot password?</a>
             </div>
-            <button type="submit"
+            <button type="submit" onclick="this.disabled=true;this.form.submit()"
               class="w-full inline-flex justify-center items-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium h-10 px-4">
               Sign In & Continue
             </button>
@@ -111,7 +111,7 @@
                   class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-gray-900">
               </div>
             </div>
-            <button type="submit"
+            <button type="submit" onclick="this.disabled=true;this.form.submit()"
               class="w-full inline-flex justify-center items-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium h-10 px-4">
               Create Account & Continue
             </button>
@@ -147,7 +147,7 @@
       @endauth
 
       {{-- Order Form --}}
-      <form action="{{ route('order.store') }}" method="POST" class="space-y-6" id="project-order-form">
+      <form action="{{ route('order.store') }}" method="POST" class="space-y-6">
         @csrf
         @php
           $selectedServices = old('services', request('service') ? [(string) request('service')] : []);
@@ -162,12 +162,6 @@
             </ul>
           </div>
         @endif
-
-        <section class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
-          <div>
-            <h2 class="text-lg font-semibold text-gray-900">Contact</h2>
-            <p class="mt-1 text-sm text-gray-500">We use this information to associate the request with your account.</p>
-          </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="space-y-2">
@@ -203,16 +197,6 @@
                    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-gray-900">
             @endauth
           </div>
-        </div>
-        </section>
-
-        <section class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
-          <div>
-            <h2 class="text-lg font-semibold text-gray-900">Project</h2>
-            <p class="mt-1 text-sm text-gray-500">Share the type of site and any domain details you already know.</p>
-          </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 {{-- DOMAIN --}}
          <div class="space-y-2" x-data="{ 
     checking: false, 
@@ -319,14 +303,6 @@
             <option value="other" {{ old('website_type') == 'other' ? 'selected' : '' }}>Other</option>
           </select>
         </div>
-        </div>
-        </section>
-
-        <section class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
-          <div>
-            <h2 class="text-lg font-semibold text-gray-900">Services and Features</h2>
-            <p class="mt-1 text-sm text-gray-500">Choose the existing services and optional features that best match the request.</p>
-          </div>
 
         <div class="space-y-3">
           <label class="block text-sm font-medium text-gray-700">Services Required *</label>
@@ -346,7 +322,6 @@
             </label>
             @endforeach
           </div>
-          @error('services')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div class="space-y-3">
@@ -368,13 +343,6 @@
             @endforeach
           </div>
         </div>
-        </section>
-
-        <section class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
-          <div>
-            <h2 class="text-lg font-semibold text-gray-900">Budget and Timeline</h2>
-            <p class="mt-1 text-sm text-gray-500">These values guide the estimate; final pricing remains server-side and confirmed after review.</p>
-          </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="space-y-2">
@@ -402,13 +370,6 @@
             </select>
           </div>
         </div>
-        </section>
-
-        <section class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
-          <div>
-            <h2 class="text-lg font-semibold text-gray-900">Project Details</h2>
-            <p class="mt-1 text-sm text-gray-500">Describe goals, content, integrations, or constraints that matter.</p>
-          </div>
 
         <div class="space-y-2">
           <label class="block text-sm font-medium text-gray-700">Project Description *</label>
@@ -424,11 +385,10 @@
                     class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-gray-900">{{ old('additional_requirements') }}</textarea>
         </div>
 
-        <button type="submit" id="project-order-submit"
+        <button type="submit" onclick="this.disabled=true;this.form.submit()"
           class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium h-10 px-4 py-2 w-full">
-          Start a Project
+          Submit Order Request
         </button>
-        </section>
       </form>
 
       @guest
@@ -438,16 +398,3 @@
   </div>
 </main>
 @endsection
-
-@push('scripts')
-<script>
-document.getElementById('project-order-form')?.addEventListener('submit', function () {
-    const submitButton = document.getElementById('project-order-submit');
-
-    if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.classList.add('opacity-60', 'cursor-not-allowed');
-    }
-});
-</script>
-@endpush

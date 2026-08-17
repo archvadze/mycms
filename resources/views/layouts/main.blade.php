@@ -74,16 +74,7 @@
 
                         @if($canUseClientPortal)
                             <a href="{{ route('client-dashboard.index') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
-                                Dashboard
-                            </a>
-                            <a href="{{ route('order.create') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
-                                Orders
-                            </a>
-                            <a href="{{ route('shop.index') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
-                                Shop
-                            </a>
-                            <a href="{{ route('subscription.plans') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
-                                Subscription
+                                {{ auth()->user()->name }}
                             </a>
                             <span class="text-gray-300">|</span>
                             <a href="{{ route('client-dashboard.profile') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
@@ -102,9 +93,6 @@
                             </button>
                         </form>
                     @else
-                        <a href="{{ route('order.create') }}" class="text-sm font-medium text-white bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-md transition-colors">
-                            Start a Project
-                        </a>
                         <a href="{{ route('login') }}" class="text-sm font-medium text-gray-600 hover:text-primary transition-colors">
                             Login
                         </a>
@@ -142,18 +130,6 @@
                             <a href="{{ route('client-dashboard.index') }}" class="block py-2 text-sm font-medium text-gray-600">
                                 Dashboard
                             </a>
-                            <a href="{{ route('order.create') }}" class="block py-2 text-sm font-medium text-gray-600">
-                                Orders
-                            </a>
-                            <a href="{{ route('shop.index') }}" class="block py-2 text-sm font-medium text-gray-600">
-                                Shop
-                            </a>
-                            <a href="{{ route('subscription.plans') }}" class="block py-2 text-sm font-medium text-gray-600">
-                                Subscription
-                            </a>
-                            <a href="{{ route('client-dashboard.profile') }}" class="block py-2 text-sm font-medium text-gray-600">
-                                Profile
-                            </a>
                         @elseif(auth()->user()->hasRole(['Super Admin', 'Admin', 'Editor', 'Support']))
                             <a href="/{{ config('agency.admin_path', 'manage') }}" class="block py-2 text-sm font-medium text-gray-600">
                                 Admin Panel
@@ -166,9 +142,6 @@
                             </button>
                         </form>
                     @else
-                        <a href="{{ route('order.create') }}" class="block py-2 text-sm font-medium text-gray-600">
-                            Start a Project
-                        </a>
                         <a href="{{ route('login') }}" class="block py-2 text-sm font-medium text-gray-600">
                             Login
                         </a>

@@ -93,7 +93,7 @@ class PublicWebsitePolishTest extends TestCase
         $this->actingAs($this->clientUser())
             ->get(route('order.create', ['service' => $service->id]))
             ->assertOk()
-            ->assertSee('Services and Features')
+            ->assertSee('Services Required')
             ->assertSee('value="'.$service->id.'"', false)
             ->assertSee('checked', false);
     }
