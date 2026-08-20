@@ -25,20 +25,20 @@
         @csrf
         @method('patch')
 
-        <div class="grid grid-cols-4 gap-3 sm:grid-cols-6" style="margin-bottom:24px;">
+        <div class="grid grid-cols-3 gap-4 sm:grid-cols-6 justify-items-center" style="margin-bottom:24px;">
           @for($i = 1; $i <= 12; $i++)
-          <label style="cursor:pointer;">
+          <label style="cursor:pointer; display:flex; justify-content:center;">
             <input type="radio" name="avatar" value="avatar{{ $i }}.svg"
                    class="sr-only" id="avatar{{ $i }}"
                    {{ Auth::user()->avatar === 'avatar'.$i.'.svg' ? 'checked' : '' }}
                    onchange="selectAvatar(this)">
             <div id="avatar-wrap-{{ $i }}"
-                 style="border-radius:50%; overflow:hidden;
-                        border: 3px solid {{ Auth::user()->avatar === 'avatar'.$i.'.svg' ? 'hsl(var(--primary))' : 'transparent' }};
+                 class="w-[72px] h-[72px] sm:w-[88px] sm:h-[88px] aspect-square rounded-full overflow-hidden transition-colors cursor-pointer"
+                 style="border: 3px solid {{ Auth::user()->avatar === 'avatar'.$i.'.svg' ? 'hsl(var(--primary))' : 'transparent' }};
                         transition: border-color .2s; cursor:pointer;"
                  onclick="document.getElementById('avatar{{ $i }}').click()">
               <img src="{{ asset('avatars/avatar'.$i.'.svg') }}"
-                   alt="Avatar {{ $i }}" style="width:100%; height:auto; display:block;">
+                   alt="Avatar {{ $i }}" class="w-full h-full object-cover block">
             </div>
           </label>
           @endfor
