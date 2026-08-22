@@ -14,6 +14,7 @@ use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class AuditFixImplementationTest extends TestCase
@@ -137,14 +138,33 @@ class AuditFixImplementationTest extends TestCase
 
     public function test_sitemap_contains_valid_public_urls_and_no_portfolio_detail_routes(): void
     {
-        $publication = Publication::factory()->published()->create(['slug' => 'valid-article']);
+        $publication = Publication::factory()->published()->create([
+            'slug' => 'valid-article',
+            'updated_at' => now()->subDays(3),
+        ]);
         $category = GuideCategory::factory()->create();
         $guide = Guide::factory()->create([
             'guide_category_id' => $category->id,
             'slug' => 'valid-guide',
             'published_at' => now(),
+            'updated_at' => now()->subDays(2),
         ]);
-        $product = $this->product(['slug' => 'valid-product']);
+        $product = $this->product([
+            'slug' => 'valid-product',
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $nullUpdatedPublication = Publication::factory()->published()->create(['slug' => 'legacy-null-article']);
+        $nullUpdatedGuide = Guide::factory()->create([
+            'guide_category_id' => $category->id,
+            'slug' => 'legacy-null-guide',
+            'published_at' => now(),
+        ]);
+        $nullUpdatedProduct = $this->product(['slug' => 'legacy-null-product']);
+
+        DB::table('publications')->where('id', $nullUpdatedPublication->id)->update(['updated_at' => null]);
+        DB::table('guides')->where('id', $nullUpdatedGuide->id)->update(['updated_at' => null]);
+        DB::table('digital_products')->where('id', $nullUpdatedProduct->id)->update(['updated_at' => null]);
 
         PortfolioProject::factory()->published()->create([
             'slug' => 'House-projects',
@@ -156,9 +176,19 @@ class AuditFixImplementationTest extends TestCase
             ->assertSee('https://archvadze.com/blog/'.$publication->slug, false)
             ->assertSee('https://archvadze.com/guides/'.$guide->slug, false)
             ->assertSee('https://archvadze.com/shop/'.$product->slug, false)
+            ->assertSee('https://archvadze.com/blog/'.$nullUpdatedPublication->slug, false)
+            ->assertSee('https://archvadze.com/guides/'.$nullUpdatedGuide->slug, false)
+            ->assertSee('https://archvadze.com/shop/'.$nullUpdatedProduct->slug, false)
             ->assertDontSee('/portfolio/House-projects', false);
 
-        $this->assertStringNotContainsString('/portfolio/House-projects', $response->getContent());
+        $content = $response->getContent();
+
+        $this->assertStringNotContainsString('/portfolio/House-projects', $content);
+        $this->assertStringNotContainsString('<lastmod></lastmod>', $content);
+        $this->assertStringNotContainsString('<lastmod/>', $content);
+        $this->assertStringContainsString('<lastmod>'.$publication->updated_at->toAtomString().'</lastmod>', $content);
+        $this->assertStringContainsString('<lastmod>'.$guide->updated_at->toAtomString().'</lastmod>', $content);
+        $this->assertStringContainsString('<lastmod>'.$product->updated_at->toAtomString().'</lastmod>', $content);
     }
 
     public function test_product_image_rendering_avoids_empty_src_and_renders_existing_images(): void

@@ -12,7 +12,9 @@
     @foreach($publications as $pub)
     <url>
         <loc>{{ $baseUrl }}/blog/{{ $pub->slug }}</loc>
+        @if ($pub->updated_at)
         <lastmod>{{ $pub->updated_at->toAtomString() }}</lastmod>
+        @endif
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
     </url>
@@ -21,7 +23,9 @@
     @foreach($guides as $guide)
     <url>
         <loc>{{ $baseUrl }}/guides/{{ $guide->slug }}</loc>
+        @if ($guide->updated_at)
         <lastmod>{{ $guide->updated_at->toAtomString() }}</lastmod>
+        @endif
         <changefreq>monthly</changefreq>
         <priority>0.6</priority>
     </url>
@@ -30,7 +34,9 @@
     @foreach($products as $product)
     <url>
         <loc>{{ $baseUrl }}/shop/{{ $product->slug }}</loc>
+        @if ($product->updated_at)
         <lastmod>{{ $product->updated_at->toAtomString() }}</lastmod>
+        @endif
         <changefreq>monthly</changefreq>
         <priority>0.6</priority>
     </url>
