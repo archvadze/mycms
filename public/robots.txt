@@ -6,4 +6,4 @@ Disallow: /client-dashboard
 Disallow: /login
 Disallow: /register
 
-Sitemap: {{ config('app.url') }}/sitemap.xml
+Sitemap: https://archvadze.com/sitemap.xml

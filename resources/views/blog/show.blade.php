@@ -1,6 +1,10 @@
 @extends('layouts.main')
 @section('title', $publication->title . ' - ' . config('agency.name') . ' Blog')
 @section('description', $publication->excerpt ?? Str::limit(strip_tags($publication->content), 160))
+@section('og_type', 'article')
+@if($publication->cover_image)
+@section('og_image', asset('storage/'.$publication->cover_image))
+@endif
 
 @section('content')
 <main class="pt-24 pb-20">

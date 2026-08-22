@@ -1,6 +1,10 @@
 @extends('layouts.main')
 @section('title', $guide->title . ' - ' . config('agency.name') . ' Guides')
-@section('description', 'Guide: ' . $guide->title)
+@section('description', Str::limit(strip_tags($guide->content), 160))
+@section('og_type', 'article')
+@if($guide->cover_image)
+@section('og_image', asset('storage/'.$guide->cover_image))
+@endif
 
 @section('content')
 <main class="pt-24 pb-20">

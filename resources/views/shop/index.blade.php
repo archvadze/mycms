@@ -1,7 +1,7 @@
 @extends('layouts.main')
 
-@section('title', 'Shop - ' . config('agency.seo.title_suffix'))
-@section('description', 'Digital products - themes, plugins, templates and more.')
+@section('title', optional($page)->seo_title ?? 'Shop - ' . config('agency.seo.title_suffix'))
+@section('description', optional($page)->seo_description ?? optional($page)->page_subtitle ?? 'Digital products - themes, plugins, templates and more.')
 
 @section('content')
 <main class="pt-24 pb-20">

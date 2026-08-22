@@ -1,7 +1,11 @@
 @extends('layouts.main')
 
 @section('title', $product->name . ' - ' . config('agency.seo.title_suffix'))
-@section('description', $product->short_description ?? $product->name)
+@section('description', $product->short_description ?: Str::limit(strip_tags($product->description), 160) ?: $product->name)
+@section('og_type', 'product')
+@if($product->image)
+@section('og_image', asset('storage/'.$product->image))
+@endif
 
 @section('content')
 <main class="pt-24 pb-20">
@@ -33,18 +37,19 @@
       <div class="space-y-3">
         @php
           $allImages = collect();
-          if ($product->image) $allImages->push(asset('storage/'.$product->image));
+          if (filled($product->image)) $allImages->push(asset('storage/'.$product->image));
           if ($product->gallery_images) {
             foreach ($product->gallery_images as $img) {
-              $allImages->push(asset('storage/'.$img));
+              if (filled($img)) $allImages->push(asset('storage/'.$img));
             }
           }
         @endphp
 
         {{-- Main Image --}}
+        @if($allImages->isNotEmpty())
         <div class="relative w-full bg-gray-100 rounded-xl overflow-hidden" style="height: 380px;">
           <img id="main-image"
-               src="{{ $allImages->first() ?? '' }}"
+               src="{{ $allImages->first() }}"
                alt="{{ $product->name }}"
                class="w-full h-full object-contain cursor-zoom-in"
                onclick="openLightbox(currentIndex)">
@@ -63,6 +68,14 @@
           </div>
           @endif
         </div>
+        @else
+        <div class="relative flex w-full items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 text-primary/50" style="height: 380px;" aria-label="{{ $product->name }}">
+          <svg class="h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+          </svg>
+        </div>
+        @endif
 
         {{-- Thumbnails --}}
         @if($allImages->count() > 1)
@@ -80,6 +93,7 @@
         @endif
 
         {{-- Lightbox --}}
+        @if($allImages->isNotEmpty())
         <div id="lightbox"
              class="fixed inset-0 z-[9999] hidden items-center justify-center p-4"
              style="background: rgba(0,0,0,0); transition: background 0.3s ease;"
@@ -111,6 +125,7 @@
           </div>
           @endif
         </div>
+        @endif
       </div>
 
       {{-- RIGHT: Details --}}
@@ -259,6 +274,7 @@
   </div>
 </main>
 
+@if($allImages->isNotEmpty())
 @push('scripts')
 <script>
 const images = @json($allImages->values());
@@ -340,4 +356,5 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 @endpush
+@endif
 @endsection

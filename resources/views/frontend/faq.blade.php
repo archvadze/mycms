@@ -30,7 +30,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
           </button>
-          <div x-show="open === {{ $i }}" x-collapse class="px-6 pb-4">
+          <div x-show="open === {{ $i }}" class="px-6 pb-4">
             <p class="text-gray-600 leading-relaxed">{{ $faq->answer }}</p>
           </div>
         </div>
