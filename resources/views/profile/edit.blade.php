@@ -2,6 +2,87 @@
 @section('title', 'Edit Profile - ' . config('agency.seo.title_suffix'))
 
 @section('content')
+<style>
+  .avatar-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .avatar-picker__item {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    aspect-ratio: 1 / 1;
+    cursor: pointer;
+  }
+
+  .avatar-picker__choice {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    aspect-ratio: 1 / 1;
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background: #f9fafb;
+    overflow: hidden;
+    transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+  }
+
+  .avatar-picker__choice img {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+  }
+
+  .avatar-picker__check {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    display: none;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 2px solid #fff;
+    background: hsl(var(--primary));
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .avatar-picker input:focus-visible + .avatar-picker__choice {
+    box-shadow: 0 0 0 3px hsl(var(--primary) / .25);
+  }
+
+  .avatar-picker input:checked + .avatar-picker__choice {
+    border-color: hsl(var(--primary));
+    background: hsl(var(--primary) / .06);
+    box-shadow: 0 0 0 3px hsl(var(--primary) / .14);
+  }
+
+  .avatar-picker input:checked + .avatar-picker__choice .avatar-picker__check {
+    display: flex;
+  }
+
+  @media (min-width: 640px) {
+    .avatar-picker {
+      gap: 18px;
+    }
+
+    .avatar-picker__item,
+    .avatar-picker__choice {
+      width: 84px;
+      height: 84px;
+    }
+  }
+</style>
+
 <main class="pt-24 pb-20 bg-gray-50 min-h-screen">
   <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
 
@@ -18,30 +99,44 @@
 
     {{-- Avatar Section --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-8 mb-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-2">Avatar</h2>
-      <p class="text-sm text-gray-500 mb-6">This appears in your client portal messages.</p>
+      @php
+        $currentUser = Auth::user();
+        $currentClient = $currentUser->client;
+        $avatarOptions = collect(range(1, 12))->map(fn ($i) => "avatar{$i}.svg");
+      @endphp
+
+      <h2 class="text-lg font-semibold text-gray-900 mb-2">Choose an Avatar</h2>
+      <p class="text-sm text-gray-500 mb-6">Select an avatar for your client portal profile.</p>
 
       <form method="POST" action="{{ route('profile.update') }}">
         @csrf
         @method('patch')
+        <input type="hidden" name="name" value="{{ $currentUser->name }}">
+        <input type="hidden" name="email" value="{{ $currentUser->email }}">
+        <input type="hidden" name="phone" value="{{ $currentClient?->phone }}">
+        <input type="hidden" name="country" value="{{ $currentClient?->country }}">
+        <input type="hidden" name="company" value="{{ $currentClient?->company }}">
+        <input type="hidden" name="website" value="{{ $currentClient?->website }}">
+        <input type="hidden" name="social_linkedin" value="{{ $currentClient?->social_linkedin }}">
+        <input type="hidden" name="social_facebook" value="{{ $currentClient?->social_facebook }}">
+        <input type="hidden" name="birthday" value="{{ $currentClient?->birthday?->format('Y-m-d') }}">
+        @foreach(($currentUser->tags ?? []) as $tag)
+          <input type="hidden" name="tags[]" value="{{ $tag }}">
+        @endforeach
 
-        <div class="grid grid-cols-3 gap-4 sm:grid-cols-6 justify-items-center" style="margin-bottom:24px;">
-          @for($i = 1; $i <= 12; $i++)
-          <label style="cursor:pointer; display:flex; justify-content:center;">
-            <input type="radio" name="avatar" value="avatar{{ $i }}.svg"
-                   class="sr-only" id="avatar{{ $i }}"
-                   {{ Auth::user()->avatar === 'avatar'.$i.'.svg' ? 'checked' : '' }}
-                   onchange="selectAvatar(this)">
-            <div id="avatar-wrap-{{ $i }}"
-                 class="w-[72px] h-[72px] sm:w-[88px] sm:h-[88px] aspect-square rounded-full overflow-hidden transition-colors cursor-pointer"
-                 style="border: 3px solid {{ Auth::user()->avatar === 'avatar'.$i.'.svg' ? 'hsl(var(--primary))' : 'transparent' }};
-                        transition: border-color .2s; cursor:pointer;"
-                 onclick="document.getElementById('avatar{{ $i }}').click()">
-              <img src="{{ asset('avatars/avatar'.$i.'.svg') }}"
-                   alt="Avatar {{ $i }}" class="w-full h-full object-cover block">
+        <div class="avatar-picker" aria-label="Choose an Avatar">
+          @foreach($avatarOptions as $avatar)
+          <label class="avatar-picker__item" for="avatar-{{ $loop->iteration }}">
+            <input type="radio" name="avatar" value="{{ $avatar }}"
+                   class="sr-only" id="avatar-{{ $loop->iteration }}"
+                   {{ $currentUser->avatar === $avatar ? 'checked' : '' }}>
+            <div class="avatar-picker__choice">
+              <img src="{{ asset('avatars/' . $avatar) }}"
+                   alt="Avatar {{ $loop->iteration }}">
+              <span class="avatar-picker__check" aria-hidden="true">&#10003;</span>
             </div>
           </label>
-          @endfor
+          @endforeach
         </div>
 
         <button type="submit"
@@ -205,14 +300,6 @@
 </main>
 
 <script>
-function selectAvatar(input) {
-    document.querySelectorAll('[id^="avatar-wrap-"]').forEach(el => {
-        el.style.borderColor = 'transparent';
-    });
-    const num = input.value.replace('avatar','').replace('.svg','');
-    document.getElementById('avatar-wrap-' + num).style.borderColor = 'hsl(var(--primary))';
-}
-
 function toggleInterest(checkbox) {
     const label = checkbox.closest('label');
     label.style.background = checkbox.checked ? 'hsl(var(--primary)/0.1)' : 'white';
