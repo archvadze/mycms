@@ -1,9 +1,7 @@
 User-agent: *
 Allow: /
 
-Disallow: /admin
+Disallow: /manage
 Disallow: /client-dashboard
-Disallow: /login
-Disallow: /register
 
 Sitemap: https://archvadze.com/sitemap.xml

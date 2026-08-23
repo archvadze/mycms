@@ -31,7 +31,7 @@
     <meta name="description" content="{{ $metaDescription }}">
     <meta name="keywords" content="{{ $keywords ?? 'web development, web design, SEO, e-commerce, Georgia, Tbilisi' }}">
     <meta name="author" content="{{ $siteName }}">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="{{ request()->routeIs('login', 'register') ? 'noindex, follow' : 'index, follow' }}">
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
 
     {{-- Open Graph --}}
