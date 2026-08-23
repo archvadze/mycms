@@ -23,6 +23,8 @@
         $ogType = filled($sectionOgType) ? $sectionOgType : 'website';
         $ogImage = filled($sectionOgImage) ? $sectionOgImage : null;
         $siteName = data_get($siteSettings, 'site_name', 'Archvadze');
+        $configuredPrimary = trim((string) data_get($siteSettings, 'color_primary'));
+        $primaryColor = filled($configuredPrimary) ? $configuredPrimary : '0 68% 53%';
     @endphp
 
     <title>{{ $seoTitle }}</title>
@@ -56,6 +58,12 @@
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        :root {
+            --primary: {{ $primaryColor }};
+            --ring: {{ $primaryColor }};
+        }
+    </style>
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
@@ -294,22 +302,7 @@
         }
     </script>
 
-
     {{-- Head Scripts (Google Search Console, Bing, etc.) --}}
-    @php
-        $configuredPrimary = trim((string) data_get($siteSettings, 'color_primary'));
-        $accessiblePrimary = in_array($configuredPrimary, ['0 84% 60%', '0 84% 60.0%', '#ef4343', '#ef4444'], true)
-            ? '0 68% 53%'
-            : $configuredPrimary;
-    @endphp
-    @if(filled($accessiblePrimary))
-    <style>
-        :root {
-            --primary: {{ $accessiblePrimary }};
-            --ring: {{ $accessiblePrimary }};
-        }
-    </style>
-    @endif
     @if(data_get($siteSettings, 'head_scripts'))
     {!! data_get($siteSettings, 'head_scripts') !!}
     @endif

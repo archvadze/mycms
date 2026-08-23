@@ -210,6 +210,50 @@ class ContentManagementWorkflowTest extends TestCase
         );
     }
 
+    public function test_public_layout_renders_configured_primary_color_css_variable(): void
+    {
+        $this->withoutVite();
+
+        $html = $this->renderPublicLayout([
+            'color_primary' => '145 63% 32%',
+        ]);
+
+        $this->assertStringContainsString('--primary: 145 63% 32%;', $html);
+        $this->assertStringContainsString('--ring: 145 63% 32%;', $html);
+    }
+
+    public function test_public_layout_reflects_changed_primary_color_setting(): void
+    {
+        $this->withoutVite();
+
+        $first = $this->renderPublicLayout([
+            'color_primary' => '145 63% 32%',
+        ]);
+
+        $second = $this->renderPublicLayout([
+            'color_primary' => '262 83% 58%',
+        ]);
+
+        $this->assertStringContainsString('--primary: 145 63% 32%;', $first);
+        $this->assertStringContainsString('--primary: 262 83% 58%;', $second);
+        $this->assertStringNotContainsString('--primary: 145 63% 32%;', $second);
+    }
+
+    public function test_public_layout_uses_accessible_primary_color_fallback_when_missing_or_blank(): void
+    {
+        $this->withoutVite();
+
+        $missing = $this->renderPublicLayout([]);
+        $blank = $this->renderPublicLayout([
+            'color_primary' => '',
+        ]);
+
+        $this->assertStringContainsString('--primary: 0 68% 53%;', $missing);
+        $this->assertStringContainsString('--ring: 0 68% 53%;', $missing);
+        $this->assertStringContainsString('--primary: 0 68% 53%;', $blank);
+        $this->assertStringContainsString('--ring: 0 68% 53%;', $blank);
+    }
+
     public function test_public_layout_uses_blank_safe_copyright_fallback_or_configured_value(): void
     {
         $this->withoutVite();
