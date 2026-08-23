@@ -14,7 +14,12 @@
                 muted
                 loop
                 playsinline
-                class="w-full h-full object-cover">
+                preload="metadata"
+    @if($homePage->hero_image)
+        poster="{{ asset('storage/' . $homePage->hero_image) }}"
+    @endif
+    aria-hidden="true"
+    class="w-full h-full object-cover">
                 <source src="{{ asset('storage/' . $homePage->hero_video) }}" type="video/mp4">
             </video>
         @elseif($homePage && $homePage->hero_image)
@@ -196,7 +201,14 @@ asort($order);
                 </div>
                 <div class="bg-gray-100 flex items-center justify-center min-h-48">
                     @if($service->image)
-                        <img src="{{ asset('storage/'.$service->image) }}" alt="{{ $service->name }}" class="w-full h-full object-cover">
+                        <img
+                            src="{{ asset('storage/'.$service->image) }}"
+                            alt="{{ $service->name }}"
+                            width="1200"
+                            height="675"
+                            loading="lazy"
+                            decoding="async"
+                            class="w-full h-full object-cover">
                     @else
                         <div class="flex flex-col items-center justify-center text-gray-300 p-6">
                             <i class="fas fa-{{ $service->icon ?? 'code' }} text-5xl"></i>
@@ -208,7 +220,14 @@ asort($order);
             <div class="grid grid-cols-1 sm:grid-cols-2 rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
                 <div class="bg-gray-100 flex items-center justify-center min-h-48 sm:order-1">
                     @if($service->image)
-                        <img src="{{ asset('storage/'.$service->image) }}" alt="{{ $service->name }}" class="w-full h-full object-cover">
+                        <img
+                            src="{{ asset('storage/'.$service->image) }}"
+                            alt="{{ $service->name }}"
+                            width="1200"
+                            height="675"
+                            loading="lazy"
+                            decoding="async"
+                            class="w-full h-full object-cover">
                     @else
                         <div class="flex flex-col items-center justify-center text-gray-300 p-6">
                             <i class="fas fa-{{ $service->icon ?? 'code' }} text-5xl"></i>
