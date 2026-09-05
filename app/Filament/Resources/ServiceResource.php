@@ -71,7 +71,8 @@ class ServiceResource extends Resource
                     Forms\Components\FileUpload::make('image')
                         ->label('Service Image')->image()
                         ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                        ->disk('public')->directory('services'),
+                        ->disk('public')->directory('services')
+                        ->helperText('Recommended: WebP, 1200x675 or matching card ratio, under 250 KB.'),
                 ])->columns(2),
         ]);
     }

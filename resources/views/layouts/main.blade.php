@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="msvalidate.01" content="F5F734CBCD894C3FA9DBA4042E0272AF" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     @php

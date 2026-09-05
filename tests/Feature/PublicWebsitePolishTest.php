@@ -98,6 +98,74 @@ class PublicWebsitePolishTest extends TestCase
             ->assertSee('checked', false);
     }
 
+    public function test_homepage_service_images_are_lazy_loaded_with_alt_text_and_stable_dimensions(): void
+    {
+        $service = Service::factory()->create([
+            'name' => 'Business Websites',
+            'description' => 'Clear business websites.',
+            'image' => 'services/business-websites.webp',
+            'status' => true,
+            'is_active' => true,
+        ]);
+
+        $response = $this->get(route('home'));
+
+        $response
+            ->assertOk()
+            ->assertSee('src="'.asset('storage/'.$service->image).'"', false)
+            ->assertSee('alt="Business Websites"', false)
+            ->assertSee('width="1200"', false)
+            ->assertSee('height="675"', false)
+            ->assertSee('loading="lazy"', false)
+            ->assertSee('decoding="async"', false)
+            ->assertDontSee('src=""', false)
+            ->assertSee(route('services', absolute: false), false);
+    }
+
+    public function test_services_page_prioritizes_only_first_service_image_and_lazily_loads_the_rest(): void
+    {
+        $first = Service::factory()->create([
+            'name' => 'Business Websites',
+            'image' => 'services/business-websites.webp',
+            'status' => true,
+            'is_active' => true,
+            'created_at' => now()->subMinutes(3),
+        ]);
+        $second = Service::factory()->create([
+            'name' => 'Custom Web Applications',
+            'image' => 'services/custom-web-applications.webp',
+            'status' => true,
+            'is_active' => true,
+            'created_at' => now()->subMinutes(2),
+        ]);
+        $third = Service::factory()->create([
+            'name' => 'Laravel Development',
+            'image' => 'services/laravel-development.webp',
+            'status' => true,
+            'is_active' => true,
+            'created_at' => now()->subMinute(),
+        ]);
+
+        $html = $this->get(route('services'))
+            ->assertOk()
+            ->assertSee('src="'.asset('storage/'.$first->image).'"', false)
+            ->assertSee('alt="Business Websites"', false)
+            ->assertSee('src="'.asset('storage/'.$second->image).'"', false)
+            ->assertSee('alt="Custom Web Applications"', false)
+            ->assertSee('src="'.asset('storage/'.$third->image).'"', false)
+            ->assertSee('alt="Laravel Development"', false)
+            ->assertSee(route('order.create', absolute: false).'?service='.$first->id, false)
+            ->assertDontSee('src=""', false)
+            ->getContent();
+
+        $this->assertSame(1, substr_count($html, 'fetchpriority="high"'));
+        $this->assertSame(1, substr_count($html, 'loading="eager"'));
+        $this->assertSame(2, substr_count($html, 'loading="lazy"'));
+        $this->assertSame(2, substr_count($html, 'decoding="async"'));
+        $this->assertStringContainsString('width="1200"', $html);
+        $this->assertStringContainsString('height="675"', $html);
+    }
+
     public function test_shop_detail_does_not_expose_private_file_path(): void
     {
         $product = DigitalProduct::create([

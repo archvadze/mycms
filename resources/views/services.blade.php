@@ -23,6 +23,9 @@
     {{-- Services — Alternating Layout --}}
     <div class="space-y-32 pt-8">
       @foreach($services as $index => $service)
+      @php
+        $isLcpServiceImage = $loop->first && filled($service->image);
+      @endphp
 
       @if($index % 2 === 0)
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
@@ -44,7 +47,15 @@
         </div>
         <div class="bg-gray-100 rounded-2xl aspect-video flex items-center justify-center overflow-hidden">
           @if($service->image)
-            <img src="{{ asset('storage/'.$service->image) }}" alt="{{ $service->name }}" class="w-full h-full object-cover rounded-2xl">
+            <img
+              src="{{ asset('storage/'.$service->image) }}"
+              alt="{{ $service->name }}"
+              width="1200"
+              height="675"
+              loading="{{ $isLcpServiceImage ? 'eager' : 'lazy' }}"
+              decoding="{{ $isLcpServiceImage ? 'auto' : 'async' }}"
+              @if($isLcpServiceImage) fetchpriority="high" @endif
+              class="w-full h-full object-cover rounded-2xl">
           @else
             <div class="flex flex-col items-center justify-center text-gray-300 p-8">
               <i class="fas fa-{{ $service->icon ?? 'code' }} text-6xl mb-3"></i>
@@ -58,7 +69,15 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         <div class="bg-gray-100 rounded-2xl aspect-video flex items-center justify-center overflow-hidden">
           @if($service->image)
-            <img src="{{ asset('storage/'.$service->image) }}" alt="{{ $service->name }}" class="w-full h-full object-cover rounded-2xl">
+            <img
+              src="{{ asset('storage/'.$service->image) }}"
+              alt="{{ $service->name }}"
+              width="1200"
+              height="675"
+              loading="{{ $isLcpServiceImage ? 'eager' : 'lazy' }}"
+              decoding="{{ $isLcpServiceImage ? 'auto' : 'async' }}"
+              @if($isLcpServiceImage) fetchpriority="high" @endif
+              class="w-full h-full object-cover rounded-2xl">
           @else
             <div class="flex flex-col items-center justify-center text-gray-300 p-8">
               <i class="fas fa-{{ $service->icon ?? 'code' }} text-6xl mb-3"></i>
