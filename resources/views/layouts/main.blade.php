@@ -32,7 +32,11 @@
     <meta name="keywords" content="{{ $keywords ?? 'web development, web design, SEO, e-commerce, Georgia, Tbilisi' }}">
     <meta name="author" content="{{ $siteName }}">
     <meta name="robots" content="{{ request()->routeIs('login', 'register') ? 'noindex, follow' : 'index, follow' }}">
-    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    <link rel="icon" type="image/png" href="{{ asset('favicon/favicon-96x96.png') }}" sizes="96x96">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon/favicon.svg') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon/favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('favicon/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ asset('favicon/site.webmanifest') }}">
 
     {{-- Open Graph --}}
     <meta property="og:title" content="{{ $seoTitle }}">
