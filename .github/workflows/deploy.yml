@@ -1,64 +1,108 @@
-name: Deploy to Production
+name: Deploy to Oracle Cloud
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mycms-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
+          cache: npm
 
-      - name: Install NPM dependencies & Build
+      - name: Build production assets
         run: |
           npm ci
           npm run build
+          test -s public/build/manifest.json
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: 82.25.96.134
-          port: 65002
-          username: u831949347
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd domains/archvadze.com
-            
-            # Pull latest code
-            git pull origin main
-            
-            # Install PHP dependencies
-            composer install --no-dev --optimize-autoloader --no-interaction
-            
-            # Run migrations
-            php artisan migrate --force
-            
-            # Clear & cache
-            php artisan optimize:clear
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            
-            # Storage link
-            php artisan storage:link 2>/dev/null || true
-            
-            echo "=== Deploy Complete ==="
-
-      - name: Copy built assets to server
+      - name: Transfer assets to staging
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: 82.25.96.134
-          port: 65002
-          username: u831949347
+          host: 138.2.173.60
+          username: ubuntu
+          port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "public/build"
-          target: "domains/archvadze.com/public_html/"
+          source: public/build
+          target: /tmp/mycms-deploy-${{ github.run_id }}
           strip_components: 1
+
+      - name: Deploy application
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 138.2.173.60
+          username: ubuntu
+          port: 22
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          script: |
+            set -eu
+
+            cd /opt/mycms/app
+
+            test -z "$(git status --porcelain)"
+            git fetch origin main
+
+            EXPECTED="${{ github.sha }}"
+            ACTUAL="$(git rev-parse origin/main)"
+
+            if [ "$ACTUAL" != "$EXPECTED" ]; then
+              echo "Remote commit mismatch. Deployment stopped."
+              exit 1
+            fi
+
+            test -s /tmp/mycms-deploy-${{ github.run_id }}/build/manifest.json
+
+            BACKUP="/opt/mycms/backups/deploy-${{ github.run_id }}"
+            mkdir -p "$BACKUP"
+            chmod 700 "$BACKUP"
+
+            docker exec mycms-mariadb sh -c '
+              MYSQL_PWD="$MARIADB_PASSWORD" mariadb-dump \
+                --user="$MARIADB_USER" \
+                --host=127.0.0.1 \
+                --single-transaction \
+                --quick \
+                --no-tablespaces \
+                "$MARIADB_DATABASE"
+            ' > "$BACKUP/database.sql"
+
+            chmod 600 "$BACKUP/database.sql"
+            test -s "$BACKUP/database.sql"
+            grep -q 'Dump completed on' "$BACKUP/database.sql"
+
+            git merge --ff-only origin/main
+
+            docker exec mycms-app composer install \
+              --no-dev --optimize-autoloader --no-interaction
+
+            docker exec mycms-app php artisan migrate --force
+            docker exec mycms-app php artisan optimize:clear
+            docker exec mycms-app php artisan config:cache
+            docker exec mycms-app php artisan route:cache
+            docker exec mycms-app php artisan view:cache
+
+            cp -a public/build "$BACKUP/build-before"
+            cp -a /tmp/mycms-deploy-${{ github.run_id }}/build/. public/build/
+
+            test -s public/build/manifest.json
+            test "$(git rev-parse HEAD)" = "$EXPECTED"
+
+            echo "DEPLOY_SUCCESS: $EXPECTED"
