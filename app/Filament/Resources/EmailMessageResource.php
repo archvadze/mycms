@@ -552,6 +552,38 @@ class EmailMessageResource extends Resource
             )
             ->actions([
                 Actions\ActionGroup::make([
+
+                    Actions\Action::make('delete_inbound_email')
+                        ->label('Delete')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete email?')
+                        ->modalDescription(
+                            'This permanently deletes the selected message record.'
+                        )
+                        ->visible(
+                            fn(EmailMessage $record): bool =>
+                                AdminAccess::canManageInbox()
+                                && $record->direction === 'inbound'
+                        )
+                        ->action(function (EmailMessage $record): void {
+                            abort_unless(AdminAccess::canManageInbox(), 403);
+
+                            $deleted = EmailMessage::query()
+                                ->whereKey($record->getKey())
+                                ->where('direction', 'inbound')
+                                ->delete();
+
+                            Notification::make()
+                                ->title(
+                                    $deleted
+                                        ? 'Email deleted'
+                                        : 'Email could not be deleted'
+                                )
+                                ->send();
+                        }),
+
                     Actions\Action::make('mark_read')
                         ->label('Mark read')
                         ->icon('heroicon-o-envelope-open')
@@ -649,6 +681,9 @@ class EmailMessageResource extends Resource
     {
         return [
             'index' => Pages\ListEmailMessages::route('/'),
+            'compose' => Pages\ComposeEmail::route('/compose'),
+            'sent' => Pages\SentEmailMessages::route('/sent'),
+            'drafts' => Pages\DraftEmailMessages::route('/drafts'),
             'view' => Pages\ViewEmailMessage::route('/{record}'),
         ];
     }

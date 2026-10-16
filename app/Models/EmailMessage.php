@@ -9,6 +9,16 @@ class EmailMessage extends Model
 {
     protected $fillable = [
         'email_thread_id',
+        'status',
+        'recipients',
+        'cc_recipients',
+        'bcc_recipients',
+        'draft_saved_at',
+        'failed_at',
+        'sending_started_at',
+        'send_attempts',
+        'sending_token',
+        'last_send_error',
         'direction',
         'source',
         'message_id',
@@ -30,6 +40,13 @@ class EmailMessage extends Model
     {
         return [
             'attachments' => 'array',
+            'recipients' => 'array',
+            'cc_recipients' => 'array',
+            'bcc_recipients' => 'array',
+            'draft_saved_at' => 'datetime',
+            'failed_at' => 'datetime',
+            'sending_started_at' => 'datetime',
+            'send_attempts' => 'integer',
             'metadata' => 'array',
             'is_read' => 'boolean',
             'received_at' => 'datetime',

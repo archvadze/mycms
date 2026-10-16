@@ -69,6 +69,11 @@ class AdminAccess
         return self::canManageOrders($user);
     }
 
+    public static function canComposeEmail(?User $user = null): bool
+    {
+        return self::hasAnyRole($user, [self::SUPER_ADMIN, self::ADMIN]);
+    }
+
     public static function canManageInbox(?User $user = null): bool
     {
         return self::hasAnyRole($user, [
