@@ -41,6 +41,26 @@ class EmailFinalVerificationTest extends TestCase
         $this->assertDatabaseHas('email_messages', ['id' => $other->id]);
     }
 
+    public function test_bulk_delete_removes_only_selected_inbound_messages(): void
+    {
+        $this->actingAs($this->user(AdminAccess::ADMIN));
+
+        $first = $this->inbound('Bulk delete first');
+        $second = $this->inbound('Bulk delete second');
+        $keep = $this->inbound('Keep this message');
+
+        Livewire::test(ListEmailMessages::class)
+            ->callTableBulkAction('delete_selected_inbound', [
+                $first->id,
+                $second->id,
+            ])
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseMissing('email_messages', ['id' => $first->id]);
+        $this->assertDatabaseMissing('email_messages', ['id' => $second->id]);
+        $this->assertDatabaseHas('email_messages', ['id' => $keep->id]);
+    }
+
     public function test_support_can_delete_inbound_message_under_current_role_policy(): void
     {
         $this->actingAs($this->user(AdminAccess::SUPPORT));

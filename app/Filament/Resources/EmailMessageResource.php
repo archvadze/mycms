@@ -647,6 +647,31 @@ class EmailMessageResource extends Resource
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
+                    Actions\BulkAction::make('delete_selected_inbound')
+                        ->label('Delete selected')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete selected emails?')
+                        ->modalDescription('This permanently deletes the selected inbound messages. This action cannot be undone.')
+                        ->action(function (Collection $records): void {
+                            abort_unless(AdminAccess::canManageInbox(), 403);
+
+                            $ids = $records
+                                ->where('direction', 'inbound')
+                                ->pluck('id');
+
+                            $deleted = EmailMessage::query()
+                                ->whereIn('id', $ids)
+                                ->where('direction', 'inbound')
+                                ->delete();
+
+                            Notification::make()
+                                ->title("Deleted {$deleted} email(s)")
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     Actions\BulkAction::make('mark_read')
                         ->label('Mark read')
                         ->icon('heroicon-o-envelope-open')
