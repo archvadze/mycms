@@ -21,13 +21,13 @@ class SecurityHeaders
        $response->headers->set(
     'Content-Security-Policy',
     "default-src 'self'; " .
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com https://www.sandbox.paypal.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " .
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com https://www.sandbox.paypal.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://challenges.cloudflare.com; " .
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; " .
     "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; " .
     "worker-src 'self' blob:; " .
     "img-src 'self' data: blob: https:; " .
-    "frame-src https://www.paypal.com https://www.sandbox.paypal.com https://www.google.com; " .
-    "connect-src 'self';"
+    "frame-src https://www.paypal.com https://www.sandbox.paypal.com https://www.google.com https://challenges.cloudflare.com; " .
+    "connect-src 'self' https://challenges.cloudflare.com;"
 );
 
         return $response;
