@@ -77,6 +77,7 @@ Route::get('/contact', [PageController::class, 'contact'])
     ->name('contact');
 
 Route::post('/contact', [PageController::class, 'sendContact'])
+    ->middleware('throttle:5,1')
     ->name('contact.send');
 
 

@@ -125,6 +125,11 @@
 
       <form action="{{ route('contact.send') }}" method="POST" class="space-y-6">
         @csrf
+        <div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;">
+          <label for="contact_website">Leave this field empty</label>
+          <input type="text" name="contact_website" id="contact_website"
+            tabindex="-1" autocomplete="off" value="">
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="space-y-2">
             <label for="name" class="block text-sm font-medium text-gray-700">Full Name *</label>

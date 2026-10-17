@@ -49,6 +49,10 @@ class PageController extends Controller
 
     public function sendContact(Request $request)
     {
+        if ($request->filled('contact_website')) {
+            return back()->with('success', 'Your message has been sent successfully.');
+        }
+
         $validated = $request->validate([
             'name'    => 'required|string|max:255',
             'email'   => 'required|email|max:255',
