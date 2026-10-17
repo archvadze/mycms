@@ -160,6 +160,16 @@
           @error('message')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
         </div>
 
+        @if(config('turnstile.enabled'))
+          <div class="cf-turnstile"
+               data-sitekey="{{ config('turnstile.site_key') }}"></div>
+          @error('cf-turnstile-response')
+            <p class="text-red-500 text-xs">{{ $message }}</p>
+          @enderror
+          <script src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+                  async defer></script>
+        @endif
+
         <button type="submit"
           class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full">
           Send Message

@@ -77,7 +77,10 @@ Route::get('/contact', [PageController::class, 'contact'])
     ->name('contact');
 
 Route::post('/contact', [PageController::class, 'sendContact'])
-    ->middleware('throttle:5,1')
+    ->middleware(
+        'throttle:' . config('turnstile.contact_rate_limit') .
+        ',' . config('turnstile.contact_rate_window')
+    )
     ->name('contact.send');
 
 

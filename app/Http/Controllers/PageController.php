@@ -6,6 +6,9 @@ use App\Models\ContactMessage;
 use App\Mail\NewContactAdminMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class PageController extends Controller
 {
@@ -59,6 +62,42 @@ class PageController extends Controller
             'subject' => 'required|string|max:255',
             'message' => 'required|string|max:5000',
         ]);
+
+        if (config('turnstile.enabled')) {
+            if (! config('turnstile.site_key') || ! config('turnstile.secret_key')) {
+                throw ValidationException::withMessages([
+                    'cf-turnstile-response' =>
+                        'Security verification is unavailable. Please try again later.',
+                ]);
+            }
+
+            $request->validate([
+                'cf-turnstile-response' => 'required|string|max:2048',
+            ]);
+
+            try {
+                $response = Http::asForm()
+                    ->timeout(5)
+                    ->post(config('turnstile.verify_url'), [
+                        'secret' => config('turnstile.secret_key'),
+                        'response' => $request->input('cf-turnstile-response'),
+                        'remoteip' => $request->ip(),
+                    ]);
+
+                $verified = $response->successful()
+                    && $response->json('success') === true;
+            } catch (Throwable $e) {
+                report($e);
+                $verified = false;
+            }
+
+            if (! $verified) {
+                throw ValidationException::withMessages([
+                    'cf-turnstile-response' =>
+                        'Security verification failed. Please try again.',
+                ]);
+            }
+        }
 
         ContactMessage::create($validated);
 
