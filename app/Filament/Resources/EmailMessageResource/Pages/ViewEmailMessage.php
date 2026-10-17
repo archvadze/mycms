@@ -68,7 +68,7 @@ class ViewEmailMessage extends ViewRecord
                     Forms\Components\TextInput::make('to')
                         ->label('To')
                         ->default(
-                            fn(): string => $this->getReplyTarget()->from_email
+                            fn(): string => $this->getReplyTarget()->replyRecipient()
                         )
                         ->disabled(),
 
@@ -110,7 +110,7 @@ class ViewEmailMessage extends ViewRecord
     {
         $replyTarget = $this->getReplyTarget();
 
-        $to = $replyTarget->from_email;
+        $to = $replyTarget->replyRecipient();
         $subject = $replyTarget->subject;
 
         /** @var MailSettings $mailSettings */

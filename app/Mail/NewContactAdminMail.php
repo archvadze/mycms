@@ -6,6 +6,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Queue\SerializesModels;
 
@@ -25,6 +26,13 @@ class NewContactAdminMail extends Mailable implements ShouldQueue
         return new Envelope(
             subject: 'New Contact Message: ' . $this->contactSubject,
             replyTo: [new Address($this->email, $this->name)],
+        );
+    }
+
+    public function headers(): Headers
+    {
+        return new Headers(
+            text: ['X-App-Notification-Type' => 'contact'],
         );
     }
 

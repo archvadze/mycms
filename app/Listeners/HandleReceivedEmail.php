@@ -121,11 +121,35 @@ class HandleReceivedEmail
                         'References',
                     ]),
                     'reply_to' => $received->reply_to ?? null,
+                    'notification_type' => $this->notificationType($headers),
                 ],
                 'is_read' => false,
                 'received_at' => $received->created_at ?? now(),
             ]);
         });
+    }
+
+    private function notificationType(array $headers): ?string
+    {
+        foreach ($headers as $name => $value) {
+            if (strtolower((string) $name) !== 'x-app-notification-type') {
+                continue;
+            }
+
+            if (! is_string($value)) {
+                return null;
+            }
+
+            $type = strtolower(trim($value));
+
+            return in_array(
+                $type,
+                ['contact', 'registration', 'order', 'subscription'],
+                true
+            ) ? $type : null;
+        }
+
+        return null;
     }
 
     private function headerValue(array $headers, array $keys): mixed

@@ -54,6 +54,36 @@ class EmailMessage extends Model
         ];
     }
 
+    public function notificationType(): string
+    {
+        $type = $this->metadata['notification_type'] ?? null;
+
+        return is_string($type) && in_array(
+            $type,
+            ['contact', 'registration', 'order', 'subscription'],
+            true
+        ) ? $type : 'regular';
+    }
+
+    public function replyRecipient(): string
+    {
+        $replyTo = $this->metadata['reply_to'] ?? null;
+
+        if (is_array($replyTo)) {
+            $replyTo = $replyTo[0] ?? null;
+        }
+
+        if (is_string($replyTo)) {
+            $replyTo = trim($replyTo);
+
+            if (filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
+                return $replyTo;
+            }
+        }
+
+        return $this->from_email;
+    }
+
     public function thread(): BelongsTo
     {
         return $this->belongsTo(EmailThread::class, 'email_thread_id');

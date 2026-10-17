@@ -217,6 +217,14 @@ class EmailMessageResource extends Resource
                         ->label('To')
                         ->disabled(),
 
+                    Forms\Components\TextInput::make('reply_recipient')
+                        ->label('Reply to')
+                        ->formatStateUsing(
+                            fn (EmailMessage $record): string =>
+                                $record->replyRecipient()
+                        )
+                        ->disabled(),
+
                     Forms\Components\TextInput::make('received_at')
                         ->label('Received')
                         ->disabled()
@@ -226,6 +234,14 @@ class EmailMessageResource extends Resource
                                 ->format('M j, Y H:i')
                                 : null
                         ),
+
+                    Forms\Components\TextInput::make('notification_type')
+                        ->label('Type')
+                        ->formatStateUsing(
+                            fn (EmailMessage $record): string =>
+                                ucfirst($record->notificationType())
+                        )
+                        ->disabled(),
 
                     Forms\Components\TextInput::make('subject')
                         ->label('Subject')
@@ -438,19 +454,22 @@ class EmailMessageResource extends Resource
                     ->falseIcon('heroicon-s-envelope')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('from_email')
-                    ->label('From')
-                    ->searchable()
-                    ->sortable()
-                    ->limit(28)
-                    ->tooltip(
-                        fn(EmailMessage $record): string =>
-                        $record->from_email
+                Tables\Columns\TextColumn::make('reply_recipient')
+                    ->label('Contact')
+                    ->state(
+                        fn (EmailMessage $record): string =>
+                            $record->replyRecipient()
                     )
-                    ->weight(
-                        fn(EmailMessage $record): string =>
-                        $record->is_read ? 'regular' : 'bold'
-                    ),
+                    ->limit(28),
+
+                Tables\Columns\TextColumn::make('notification_type')
+                    ->label('Type')
+                    ->state(
+                        fn (EmailMessage $record): string =>
+                            ucfirst($record->notificationType())
+                    )
+                    ->badge()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('subject')
                     ->label('Subject')

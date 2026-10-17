@@ -8,6 +8,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Queue\SerializesModels;
 
 class NewUserAdminMail extends Mailable implements ShouldQueue
@@ -19,7 +21,15 @@ class NewUserAdminMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
+            replyTo: [new Address($this->user->email, $this->user->name)],
             subject: 'New User Registration — ' . $this->user->name,
+        );
+    }
+
+    public function headers(): Headers
+    {
+        return new Headers(
+            text: ['X-App-Notification-Type' => 'registration'],
         );
     }
 
