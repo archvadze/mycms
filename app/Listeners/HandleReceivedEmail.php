@@ -70,6 +70,15 @@ class HandleReceivedEmail
             ? $received->headers
             : [];
 
+        $notificationType = $this->notificationType($headers);
+        $actorName = $notificationType
+            ? $this->notificationActorName($headers)
+            : null;
+
+        if ($actorName !== null) {
+            $fromName = $actorName;
+        }
+
         $thread = $this->resolveThreadFromHeaders($headers);
 
         DB::transaction(function () use (
@@ -83,7 +92,8 @@ class HandleReceivedEmail
             $subject,
             $attachments,
             $thread,
-            $headers
+            $headers,
+            $notificationType
         ) {
             if (! $thread) {
                 $thread = EmailThread::create([
@@ -121,12 +131,31 @@ class HandleReceivedEmail
                         'References',
                     ]),
                     'reply_to' => $received->reply_to ?? null,
-                    'notification_type' => $this->notificationType($headers),
+                    'notification_type' => $notificationType,
                 ],
                 'is_read' => false,
                 'received_at' => $received->created_at ?? now(),
             ]);
         });
+    }
+
+    private function notificationActorName(array $headers): ?string
+    {
+        foreach ($headers as $key => $value) {
+            if (strtolower((string) $key) !== 'x-app-actor-name') {
+                continue;
+            }
+
+            if (! is_string($value)) {
+                return null;
+            }
+
+            $name = trim(preg_replace('/[\\x00-\\x1F\\x7F]+/u', ' ', $value) ?? '');
+
+            return $name !== '' ? mb_substr($name, 0, 120) : null;
+        }
+
+        return null;
     }
 
     private function notificationType(array $headers): ?string

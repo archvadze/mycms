@@ -28,7 +28,14 @@ class NewOrderAdminMail extends Mailable implements ShouldQueue
     public function headers(): Headers
     {
         return new Headers(
-            text: ['X-App-Notification-Type' => 'order'],
+            text: [
+                'X-App-Notification-Type' => 'order',
+                'X-App-Actor-Name' => mb_substr(
+                    trim(str_replace(["\r", "\n"], ' ', (string) $this->order->client_name)),
+                    0,
+                    120
+                ),
+            ],
         );
     }
 

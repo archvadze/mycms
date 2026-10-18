@@ -32,7 +32,14 @@ class NewContactAdminMail extends Mailable implements ShouldQueue
     public function headers(): Headers
     {
         return new Headers(
-            text: ['X-App-Notification-Type' => 'contact'],
+            text: [
+                'X-App-Notification-Type' => 'contact',
+                'X-App-Actor-Name' => mb_substr(
+                    trim(str_replace(["\r", "\n"], ' ', (string) $this->name)),
+                    0,
+                    120
+                ),
+            ],
         );
     }
 

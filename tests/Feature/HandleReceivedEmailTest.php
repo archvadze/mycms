@@ -381,4 +381,70 @@ class HandleReceivedEmailTest extends TestCase
             'is_read' => false,
         ]);
     }
+
+
+    public function test_contact_notification_stores_actor_name_and_type(): void
+    {
+        $received = (object) [
+            'from' => 'admin@example.com',
+            'to' => ['admin@example.com'],
+            'created_at' => now()->toISOString(),
+            'subject' => 'New Contact Message: Test',
+            'text' => 'Contact message',
+            'html' => null,
+            'message_id' => '<contact-actor-test@example.com>',
+            'headers' => [
+                'X-App-Notification-Type' => 'contact',
+                'X-App-Actor-Name' => 'Contact Visitor',
+            ],
+            'reply_to' => ['visitor@example.com'],
+            'attachments' => [],
+        ];
+
+        $listener = $this->listenerWithFakeReceivedEmail($received);
+
+        $listener->handle(new EmailReceived([
+            'type' => 'email.received',
+            'data' => ['email_id' => 'contact-actor-test'],
+        ]));
+
+        $message = EmailMessage::firstOrFail();
+
+        $this->assertSame('Contact Visitor', $message->from_name);
+        $this->assertSame('admin@example.com', $message->from_email);
+        $this->assertSame('visitor@example.com', $message->replyRecipient());
+        $this->assertSame('contact', $message->notificationType());
+        $this->assertSame('contact', $message->metadata['notification_type']);
+    }
+
+    public function test_regular_email_preserves_original_sender(): void
+    {
+        $received = (object) [
+            'from' => 'External Sender <sender@example.com>',
+            'to' => ['admin@example.com'],
+            'created_at' => now()->toISOString(),
+            'subject' => 'Ordinary email',
+            'text' => 'Hello',
+            'html' => null,
+            'message_id' => '<regular-actor-test@example.com>',
+            'headers' => [
+                'X-App-Actor-Name' => 'Fake Contact Name',
+            ],
+            'reply_to' => [],
+            'attachments' => [],
+        ];
+
+        $listener = $this->listenerWithFakeReceivedEmail($received);
+
+        $listener->handle(new EmailReceived([
+            'type' => 'email.received',
+            'data' => ['email_id' => 'regular-actor-test'],
+        ]));
+
+        $message = EmailMessage::firstOrFail();
+
+        $this->assertSame('External Sender', $message->from_name);
+        $this->assertSame('sender@example.com', $message->from_email);
+        $this->assertSame('regular', $message->notificationType());
+    }
 }

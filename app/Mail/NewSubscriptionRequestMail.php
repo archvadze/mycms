@@ -28,7 +28,14 @@ class NewSubscriptionRequestMail extends Mailable implements ShouldQueue
     public function headers(): Headers
     {
         return new Headers(
-            text: ['X-App-Notification-Type' => 'subscription'],
+            text: [
+                'X-App-Notification-Type' => 'subscription',
+                'X-App-Actor-Name' => mb_substr(
+                    trim(str_replace(["\r", "\n"], ' ', (string) $this->subscription->user->name)),
+                    0,
+                    120
+                ),
+            ],
         );
     }
 

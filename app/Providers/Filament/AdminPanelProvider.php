@@ -25,6 +25,7 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('admin')
+            ->maxContentWidth(\Filament\Support\Enums\Width::Full)
             ->path(config('agency.admin_path', 'manage'))
             ->colors([
                 'primary' => Color::Amber,

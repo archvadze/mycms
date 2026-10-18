@@ -29,7 +29,14 @@ class NewUserAdminMail extends Mailable implements ShouldQueue
     public function headers(): Headers
     {
         return new Headers(
-            text: ['X-App-Notification-Type' => 'registration'],
+            text: [
+                'X-App-Notification-Type' => 'registration',
+                'X-App-Actor-Name' => mb_substr(
+                    trim(str_replace(["\r", "\n"], ' ', (string) $this->user->name)),
+                    0,
+                    120
+                ),
+            ],
         );
     }
 
