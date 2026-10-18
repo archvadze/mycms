@@ -65,6 +65,25 @@ class EmailMessage extends Model
         ) ? $type : 'regular';
     }
 
+    public function displayNotificationType(): string
+    {
+        $type = $this->metadata['notification_type'] ?? null;
+
+        if (is_string($type) && in_array(
+            $type,
+            ['contact', 'registration', 'order', 'subscription'],
+            true
+        )) {
+            return ucfirst($type);
+        }
+
+        if ($type !== null) {
+            return 'Regular';
+        }
+
+        return 'Legacy';
+    }
+
     public function replyRecipient(): string
     {
         $replyTo = $this->metadata['reply_to'] ?? null;

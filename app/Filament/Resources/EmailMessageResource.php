@@ -239,7 +239,7 @@ class EmailMessageResource extends Resource
                         ->label('Type')
                         ->formatStateUsing(
                             fn (EmailMessage $record): string =>
-                                ucfirst($record->notificationType())
+                                $record->displayNotificationType()
                         )
                         ->disabled(),
 
@@ -466,7 +466,7 @@ class EmailMessageResource extends Resource
                     ->label('Type')
                     ->state(
                         fn (EmailMessage $record): string =>
-                            ucfirst($record->notificationType())
+                            $record->displayNotificationType()
                     )
                     ->badge()
                     ->toggleable(isToggledHiddenByDefault: true),
