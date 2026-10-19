@@ -21,6 +21,7 @@ return [
         'client_id'     => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect'      => env('GOOGLE_REDIRECT_URL', '/auth/google/callback'),
+        'legacy_email_fallback' => env('GOOGLE_LEGACY_EMAIL_FALLBACK', false),
     ],
     'facebook' => [
         'client_id'     => env('FACEBOOK_CLIENT_ID'),

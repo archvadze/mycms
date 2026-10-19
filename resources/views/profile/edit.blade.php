@@ -265,6 +265,57 @@
       </form>
     </div>
 
+    {{-- Connected Accounts --}}
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-8 mb-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-2">Connected Accounts</h2>
+      <p class="text-sm text-gray-500 mb-5">
+        Manage external accounts used to sign in securely.
+      </p>
+
+      @if(session('error'))
+        <p role="alert" class="text-sm text-red-700 mb-4">{{ session('error') }}</p>
+      @endif
+
+      @if(session('status') === 'Social account connected.')
+        <p role="status" class="text-sm text-green-700 mb-4">
+          Google account connected successfully.
+        </p>
+      @endif
+
+      @php
+        $googleConnected = Auth::user()
+            ->socialAccounts()
+            ->where('provider', 'google')
+            ->exists();
+
+        $googleAvailable = filled(config('services.google.client_id'))
+            && filled(config('services.google.client_secret'));
+      @endphp
+
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p class="font-medium text-gray-900">Google</p>
+          <p class="text-sm text-gray-500">
+            {{ $googleConnected ? 'Connected' : 'Not connected' }}
+          </p>
+        </div>
+
+        @if($googleConnected)
+          <span class="text-sm font-medium text-green-700">Connected</span>
+        @elseif($googleAvailable && Auth::user()->status === 'active')
+          <form method="POST" action="{{ route('social.connect', 'google') }}">
+            @csrf
+            <button type="submit"
+              class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-5 py-2 text-sm font-medium">
+              Connect Google
+            </button>
+          </form>
+        @else
+          <span class="text-sm text-gray-500">Unavailable</span>
+        @endif
+      </div>
+    </div>
+
     {{-- Password Form --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-8 mb-6">
       <h2 class="text-lg font-semibold text-gray-900 mb-2">Change Password</h2>

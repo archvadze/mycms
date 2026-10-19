@@ -4,6 +4,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -55,6 +56,11 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     public function getMemberSinceAttribute(): string
     {
         return $this->created_at->format('Y');
+    }
+
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
     }
 
     public function client(): HasOne

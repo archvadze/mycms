@@ -174,6 +174,12 @@ Route::get(
     [SocialAuthController::class, 'redirect']
 )->name('social.redirect');
 
+Route::post(
+    '/auth/{provider}/connect',
+    [SocialAuthController::class, 'connect']
+)->middleware(['auth', 'verified', 'throttle:5,1'])
+    ->name('social.connect');
+
 Route::get(
     '/auth/{provider}/callback',
     [SocialAuthController::class, 'callback']

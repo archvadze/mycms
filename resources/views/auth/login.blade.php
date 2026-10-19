@@ -2,6 +2,13 @@
 
 @section('auth-content')
 
+@if (session('error'))
+    <div role="alert"
+         class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        {{ session('error') }}
+    </div>
+@endif
+
 <!-- Session Status -->
 @if (session('status'))
     <div class="mb-4 font-medium text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-4">
