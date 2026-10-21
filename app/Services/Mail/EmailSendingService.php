@@ -90,6 +90,118 @@ class EmailSendingService
         return $message->refresh();
     }
 
+
+    /**
+     * Send a reply in the original conversation, recording the attempt before contacting Resend.
+     * A provider error means delivery is unknown; never retry automatically.
+     */
+    public function sendReply(EmailMessage $replyTarget, string $body): EmailMessage
+    {
+        if (! $this->mailSettings->enabled()) {
+            throw new RuntimeException('Email sending is disabled.');
+        }
+
+        $body = trim($body);
+        $recipient = trim($replyTarget->replyRecipient());
+        if ($body === '' || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('A valid recipient and non-empty reply are required.');
+        }
+        if ($replyTarget->direction !== 'inbound' || ! $replyTarget->email_thread_id) {
+            throw new RuntimeException('Replies require an inbound message with a conversation.');
+        }
+
+        $originalSubject = trim((string) $replyTarget->subject);
+        $subject = preg_match('/^re:/i', $originalSubject)
+            ? $originalSubject
+            : 'Re: ' . ($originalSubject ?: '(No subject)');
+        $originalMessageId = trim((string) $replyTarget->message_id);
+        $senderName = $this->mailSettings->senderName();
+        $senderEmail = $this->mailSettings->senderEmail();
+
+        $message = DB::transaction(function () use ($replyTarget, $recipient, $subject, $body, $senderName, $senderEmail): EmailMessage {
+            return EmailMessage::create([
+                'email_thread_id' => $replyTarget->email_thread_id,
+                'direction' => 'outbound',
+                'source' => 'resend',
+                'status' => 'pending',
+                'recipients' => [$recipient],
+                'cc_recipients' => [],
+                'bcc_recipients' => [],
+                'from_name' => $senderName,
+                'from_email' => $senderEmail,
+                'to_email' => $recipient,
+                'subject' => $subject,
+                'text_body' => $body,
+                'html_body' => null,
+                'in_reply_to' => $replyTarget->message_id,
+                'attachments' => [],
+                'metadata' => [],
+                'is_read' => true,
+                'send_attempts' => 0,
+                'sending_token' => (string) Str::uuid(),
+            ]);
+        });
+
+        $message->update([
+            'status' => 'sending',
+            'sending_started_at' => now(),
+            'send_attempts' => 1,
+        ]);
+
+        try {
+            /** @var \Resend\Contracts\Client $client */
+            $client = app(\Resend\Contracts\Client::class);
+            $payload = [
+                'from' => "{$senderName} <{$senderEmail}>",
+                'to' => [$recipient],
+                'subject' => $subject,
+                'text' => $body,
+            ];
+            if ($originalMessageId !== '') {
+                $payload['headers'] = [
+                    'In-Reply-To' => $originalMessageId,
+                    'References' => $originalMessageId,
+                ];
+            }
+            if ($replyTo = $this->mailSettings->replyTo()) {
+                $payload['reply_to'] = [$replyTo];
+            }
+
+            $sent = $client->emails->send($payload);
+            $message->update([
+                'status' => 'sent',
+                'message_id' => $sent->id,
+                'metadata' => ['resend_email_id' => $sent->id],
+                'sent_at' => now(),
+                'last_send_error' => null,
+            ]);
+            $replyTarget->thread?->update(['last_message_at' => now()]);
+        } catch (Throwable $e) {
+            try {
+                $message->update([
+                    'status' => 'unknown',
+                    'last_send_error' => mb_substr($e->getMessage(), 0, 5000),
+                ]);
+            } catch (Throwable $storageError) {
+                Log::critical('Reply status persistence failed', [
+                    'email_message_id' => $message->id,
+                    'exception' => get_class($storageError),
+                ]);
+            }
+            Log::error('Reply delivery uncertain', [
+                'email_message_id' => $message->id,
+                'exception' => get_class($e),
+            ]);
+            throw new RuntimeException(
+                'Reply delivery could not be confirmed. Check Sent status before retrying.',
+                0,
+                $e
+            );
+        }
+
+        return $message->refresh();
+    }
+
     private function addresses(array $values, bool $required): array
     {
         $addresses = [];

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\EmailMessageResource\Pages;
 
+use App\Support\AdminAccess;
 use App\Filament\Resources\EmailMessageResource;
 use App\Models\EmailMessage;
 use App\Services\MailSettings;
@@ -62,6 +63,7 @@ class ViewEmailMessage extends ViewRecord
                         ->send();
                 }),
             Actions\Action::make('reply')
+                ->authorize(fn (): bool => AdminAccess::canComposeEmail())
                 ->label('Reply')
                 ->icon('heroicon-o-arrow-uturn-left')
                 ->form([
@@ -108,71 +110,8 @@ class ViewEmailMessage extends ViewRecord
 
     private function sendReply(string $body): void
     {
-        $replyTarget = $this->getReplyTarget();
-
-        $to = $replyTarget->replyRecipient();
-        $subject = $replyTarget->subject;
-
-        /** @var MailSettings $mailSettings */
-        $mailSettings = app(MailSettings::class);
-
-        if (! $mailSettings->enabled()) {
-            Notification::make()
-                ->title('Mail is disabled')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        $senderName = $mailSettings->senderName();
-        $senderEmail = $mailSettings->senderEmail();
-        $replyTo = $mailSettings->replyTo();
-
         try {
-            /** @var ResendClient $resend */
-            $resend = app(ResendClient::class);
-
-            $sendPayload = [
-                'from' => "{$senderName} <{$senderEmail}>",
-                'to' => [$to],
-                'subject' => $subject,
-                'text' => $body,
-                'headers' => [
-                    'In-Reply-To' => $replyTarget->message_id,
-                    'References' => $replyTarget->message_id,
-                ],
-            ];
-
-            if ($replyTo) {
-                $sendPayload['reply_to'] = [$replyTo];
-            }
-
-            $sent = $resend->emails->send($sendPayload);
-
-            EmailMessage::create([
-                'email_thread_id' => $replyTarget->email_thread_id,
-                'direction' => 'outbound',
-                'source' => 'resend',
-                'message_id' => $sent->id,
-                'in_reply_to' => $replyTarget->message_id,
-                'from_name' => $senderName,
-                'from_email' => $senderEmail,
-                'to_email' => $to,
-                'subject' => $subject,
-                'text_body' => $body,
-                'html_body' => null,
-                'attachments' => [],
-                'metadata' => [
-                    'resend_email_id' => $sent->id,
-                ],
-                'is_read' => true,
-                'sent_at' => now(),
-            ]);
-
-            $this->record->thread?->update([
-                'last_message_at' => now(),
-            ]);
+            app(\App\Services\Mail\EmailSendingService::class)->sendReply($this->getReplyTarget(), $body);
 
             Notification::make()
                 ->title('Reply sent')
@@ -181,14 +120,12 @@ class ViewEmailMessage extends ViewRecord
         } catch (Throwable $e) {
             \Log::error('Inbox reply failed', [
                 'email_message_id' => $this->record->id,
-                'thread_id' => $this->record->email_thread_id,
                 'exception' => get_class($e),
-                'error' => $e->getMessage(),
             ]);
 
             Notification::make()
-                ->title('Reply could not be sent')
-                ->body('Please try again.')
+                ->title('Reply could not be confirmed')
+                ->body('Check Sent status before retrying. The provider may already have accepted this reply.')
                 ->danger()
                 ->send();
         }
