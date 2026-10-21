@@ -14,6 +14,8 @@ class SentEmailMessages extends Page implements HasTable
         HasOutboundMessagesTable::table insteadof InteractsWithTable;
     }
 
+    use HasEmailManagerNavigation;
+
     protected static string $resource = EmailMessageResource::class;
     protected string $view = 'filament.resources.email-message-resource.pages.outbound-list';
 
@@ -30,30 +32,7 @@ class SentEmailMessages extends Page implements HasTable
 
     protected function getHeaderActions(): array
     {
-        return [
-            \Filament\Actions\Action::make('inbox')
-                ->label('Inbox')
-                ->icon('heroicon-o-inbox')
-                ->color('gray')
-                ->url(EmailMessageResource::getUrl('index')),
-
-            \Filament\Actions\Action::make('compose')
-                ->label('Compose')
-                ->icon('heroicon-o-pencil-square')
-                ->url(EmailMessageResource::getUrl('compose')),
-
-            \Filament\Actions\Action::make('sent')
-                ->label('Sent')
-                ->icon('heroicon-o-paper-airplane')
-                ->color('gray')
-                ->url(EmailMessageResource::getUrl('sent')),
-
-            \Filament\Actions\Action::make('drafts')
-                ->label('Drafts')
-                ->icon('heroicon-o-document-text')
-                ->color('gray')
-                ->url(EmailMessageResource::getUrl('drafts')),
-        ];
+        return $this->emailNavigationActions('sent');
     }
 
     protected function isDraftList(): bool

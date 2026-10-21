@@ -728,6 +728,7 @@ class EmailMessageResource extends Resource
             'compose' => Pages\ComposeEmail::route('/compose'),
             'sent' => Pages\SentEmailMessages::route('/sent'),
             'drafts' => Pages\DraftEmailMessages::route('/drafts'),
+            'sent-view' => Pages\ViewSentEmailMessage::route('/sent/{record}'),
             'view' => Pages\ViewEmailMessage::route('/{record}'),
         ];
     }

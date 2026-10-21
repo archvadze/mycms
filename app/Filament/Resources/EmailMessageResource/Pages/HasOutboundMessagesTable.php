@@ -6,6 +6,7 @@ use App\Filament\Resources\EmailMessageResource;
 use App\Models\EmailMessage;
 use App\Support\AdminAccess;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -29,13 +30,22 @@ trait HasOutboundMessagesTable
                 TextColumn::make('to_email')
                     ->label('To')
                     ->formatStateUsing(fn (EmailMessage $record): string => implode(', ', $record->recipients ?: array_filter([$record->to_email])))
-                    ->wrap()
-                    ->searchable(),
+                    ->limit(28)
+                    ->tooltip(fn (EmailMessage $record): string =>
+                        implode(', ', $record->recipients ?: array_filter([$record->to_email]))
+                    )
+                    ->searchable(query: fn (Builder $query, string $search): Builder =>
+                        $query->where(function (Builder $q) use ($search): void {
+                            $q->where('to_email', 'like', "%{$search}%")
+                                ->orWhere('recipients', 'like', "%{$search}%");
+                        })
+                    ),
                 TextColumn::make('subject')
                     ->label('Subject')
                     ->placeholder('(No subject)')
                     ->searchable()
-                    ->limit(65),
+                    ->limit(42)
+                    ->tooltip(fn (EmailMessage $record): string => $record->subject ?? ''),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -47,12 +57,50 @@ trait HasOutboundMessagesTable
                     })
                     ->formatStateUsing(fn (?string $state): string => ucfirst($state ?: 'unknown')),
                 TextColumn::make('updated_at')
-                    ->label('Updated')
-                    ->dateTime('M j, Y H:i')
-                    ->sortable(),
+                    ->label($this->isDraftList() ? 'Updated' : 'Activity')
+                    ->state(fn (EmailMessage $record) =>
+                        $this->isDraftList()
+                            ? ($record->draft_saved_at ?? $record->updated_at)
+                            : ($record->sent_at ?? $record->updated_at)
+                    )
+                    ->since()
+                    ->sortable(query: fn (Builder $query, string $direction): Builder =>
+                        $query->orderByRaw(
+                            'COALESCE('
+                            . ($this->isDraftList() ? 'draft_saved_at' : 'sent_at')
+                            . ', updated_at) '
+                            . ($direction === 'asc' ? 'ASC' : 'DESC')
+                        )
+                    )
+                    ->tooltip(fn (EmailMessage $record): ?string =>
+                        ($this->isDraftList()
+                            ? ($record->draft_saved_at ?? $record->updated_at)
+                            : ($record->sent_at ?? $record->updated_at)
+                        )?->format('Y-m-d H:i:s')
+                    ),
+            ])
+            ->filters($this->isDraftList() ? [] : [
+                \Filament\Tables\Filters\SelectFilter::make('status')
+                    ->label('Delivery status')
+                    ->options([
+                        'sent' => 'Sent',
+                        'unknown' => 'Unknown',
+                        'failed' => 'Failed',
+                        'pending' => 'Pending',
+                        'sending' => 'Sending',
+                    ]),
             ])
             ->defaultSort('id', 'desc')
+            ->recordUrl(fn (EmailMessage $record): string => $this->isDraftList()
+                ? EmailMessageResource::getUrl('compose', ['draft' => $record->getKey()])
+                : EmailMessageResource::getUrl('sent-view', ['record' => $record->getKey()]))
             ->recordActions([
+                ActionGroup::make([
+                    Action::make('viewMessage')
+                        ->label('View message')
+                        ->icon('heroicon-o-eye')
+                        ->url(fn (EmailMessage $record): string => EmailMessageResource::getUrl('sent-view', ['record' => $record->getKey()]))
+                        ->visible(fn (EmailMessage $record): bool => $record->status !== 'draft' && AdminAccess::canComposeEmail()),
                 Action::make('editDraft')
                     ->label('Edit draft')
                     ->icon('heroicon-o-pencil-square')
@@ -82,6 +130,10 @@ trait HasOutboundMessagesTable
                         }
                         Notification::make()->title('Email record deleted')->success()->send();
                     }),
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->iconButton(),
             ])
             ->emptyStateHeading($this->isDraftList() ? 'No drafts' : 'No sent messages')
             ->paginated([10, 25, 50]);
