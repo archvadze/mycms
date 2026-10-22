@@ -127,4 +127,40 @@ class EmailMailboxFilterTest extends TestCase
             ->assertCanSeeTableRecords([$supportMessage])
             ->assertCanNotSeeTableRecords([$adminMessage, $unrelated]);
     }
+
+    public function test_inbox_filter_includes_cc_mailbox(): void
+    {
+        $message = $this->message('inbound', 'admin@archvadze.com');
+
+        $message->update([
+            'cc_recipients' => ['support@archvadze.com'],
+        ]);
+
+        Livewire::test(ListEmailMessages::class)
+            ->filterTable('mailbox', 'support@archvadze.com')
+            ->assertCanSeeTableRecords([$message]);
+    }
+
+    public function test_inbox_filter_matches_cc_mailbox_in_earlier_thread_message(): void
+    {
+        $earlier = $this->message('inbound', 'admin@archvadze.com');
+
+        $earlier->update([
+            'cc_recipients' => ['support@archvadze.com'],
+            'received_at' => now()->subMinute(),
+        ]);
+
+        $latest = $this->message('inbound', 'admin@archvadze.com');
+        $latest->update([
+            'email_thread_id' => $earlier->email_thread_id,
+            'received_at' => now(),
+        ]);
+
+        $unrelated = $this->message('inbound', 'admin@archvadze.com');
+
+        Livewire::test(ListEmailMessages::class)
+            ->filterTable('mailbox', 'support@archvadze.com')
+            ->assertCanSeeTableRecords([$latest])
+            ->assertCanNotSeeTableRecords([$earlier, $unrelated]);
+    }
 }

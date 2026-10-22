@@ -537,6 +537,10 @@ class EmailMessageResource extends Resource
                                         ->orWhereRaw(
                                             'LOWER(CAST(recipients AS TEXT)) LIKE ?',
                                             ['%"' . strtolower($mailbox) . '"%']
+                                        )
+                                        ->orWhereRaw(
+                                            'LOWER(CAST(cc_recipients AS TEXT)) LIKE ?',
+                                            ['%"' . strtolower($mailbox) . '"%']
                                         );
                                 });
                         };

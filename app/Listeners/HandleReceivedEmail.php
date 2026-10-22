@@ -66,6 +66,16 @@ class HandleReceivedEmail
 
         $toEmail = $toRecipients[0] ?? null;
 
+        $cc = $received->cc ?? ($data['cc'] ?? []);
+
+        $ccRecipients = collect(is_array($cc) ? $cc : [$cc])
+            ->filter(fn ($address): bool => is_string($address))
+            ->map(fn (string $address): string => trim($address))
+            ->filter(fn (string $address): bool => filter_var($address, FILTER_VALIDATE_EMAIL) !== false)
+            ->unique(fn (string $address): string => strtolower($address))
+            ->values()
+            ->all();
+
         $subject = $received->subject
             ?? $data['subject']
             ?? '(No subject)';
@@ -96,6 +106,7 @@ class HandleReceivedEmail
             $fromEmail,
             $toEmail,
             $toRecipients,
+            $ccRecipients,
             $subject,
             $attachments,
             $thread,
@@ -124,6 +135,7 @@ class HandleReceivedEmail
                 'from_email' => $fromEmail ?: 'unknown@example.invalid',
                 'to_email' => $toEmail ?: $this->mailSettings->inboxEmail(),
                 'recipients' => $toRecipients ?: [$this->mailSettings->inboxEmail()],
+                'cc_recipients' => $ccRecipients,
                 'subject' => $subject,
                 'text_body' => $received->text ?? null,
                 'html_body' => $received->html ?? null,

@@ -494,4 +494,56 @@ class HandleReceivedEmailTest extends TestCase
         $this->assertSame('inbound', $message->direction);
         $this->assertNotNull($message->email_thread_id);
     }
+
+    public function test_inbound_cc_recipients_are_preserved_without_duplicates(): void
+    {
+        $received = (object) [
+            'id' => 'cc-recipient-001',
+            'from' => 'Customer <customer@example.com>',
+            'to' => ['admin@archvadze.com'],
+            'cc' => [
+                'support@archvadze.com',
+                'SUPPORT@ARCHVADZE.COM',
+                'invalid-address',
+            ],
+            'created_at' => now()->toISOString(),
+            'subject' => 'CC routing test',
+            'text' => 'Message with CC recipients',
+            'html' => null,
+            'message_id' => '<cc-recipient-001@example.com>',
+            'headers' => [],
+            'reply_to' => null,
+            'attachments' => [],
+        ];
+
+        $listener = $this->listenerWithFakeReceivedEmail($received);
+
+        $event = new EmailReceived([
+            'type' => 'email.received',
+            'data' => ['email_id' => 'cc-recipient-001'],
+        ]);
+
+        $listener->handle($event);
+        $listener->handle($event);
+
+        $this->assertDatabaseCount('email_messages', 1);
+        $this->assertDatabaseCount('email_threads', 1);
+
+        $message = EmailMessage::query()->sole();
+
+        $this->assertSame(
+            ['admin@archvadze.com'],
+            $message->recipients
+        );
+
+        $this->assertSame(
+            ['support@archvadze.com'],
+            $message->cc_recipients
+        );
+
+        $this->assertSame(
+            'admin@archvadze.com',
+            $message->to_email
+        );
+    }
 }
