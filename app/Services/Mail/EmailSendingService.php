@@ -117,8 +117,35 @@ class EmailSendingService
             ? $originalSubject
             : 'Re: ' . ($originalSubject ?: '(No subject)');
         $originalMessageId = trim((string) $replyTarget->message_id);
-        $senderName = $this->mailSettings->senderName();
-        $senderEmail = $this->mailSettings->senderEmail();
+        $allowed = MailboxIdentity::composeOptions($this->mailSettings);
+
+        $incomingRecipients = array_merge(
+            [$replyTarget->to_email],
+            $replyTarget->recipients ?? []
+        );
+
+        $requestedSender = null;
+
+        foreach ($incomingRecipients as $incomingAddress) {
+            if (! is_string($incomingAddress)) {
+                continue;
+            }
+
+            foreach (array_keys($allowed) as $allowedAddress) {
+                if (strcasecmp(trim($incomingAddress), $allowedAddress) === 0) {
+                    $requestedSender = $allowedAddress;
+                    break 2;
+                }
+            }
+        }
+
+        $sender = MailboxIdentity::resolve(
+            $requestedSender,
+            $this->mailSettings
+        );
+
+        $senderName = $sender['name'];
+        $senderEmail = $sender['email'];
 
         $message = DB::transaction(function () use ($replyTarget, $recipient, $subject, $body, $senderName, $senderEmail): EmailMessage {
             return EmailMessage::create([
