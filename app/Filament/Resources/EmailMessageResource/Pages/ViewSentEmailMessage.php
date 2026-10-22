@@ -38,6 +38,11 @@ class ViewSentEmailMessage extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('forward')
+                ->label('Forward')
+                ->icon('heroicon-o-arrow-uturn-right')
+                ->authorize(fn (): bool => AdminAccess::canComposeEmail())
+                ->url(fn (): string => EmailMessageResource::getUrl('compose', ['forward' => $this->message->getKey()])),
             Action::make('backToSent')
                 ->label('Back to Sent')
                 ->icon('heroicon-o-arrow-left')

@@ -62,6 +62,11 @@ class ViewEmailMessage extends ViewRecord
                         ->success()
                         ->send();
                 }),
+            Actions\Action::make('forward')
+                ->label('Forward')
+                ->icon('heroicon-o-arrow-uturn-right')
+                ->authorize(fn (): bool => AdminAccess::canComposeEmail())
+                ->url(fn (): string => EmailMessageResource::getUrl('compose', ['forward' => $this->record->getKey()])),
             Actions\Action::make('reply')
                 ->authorize(fn (): bool => AdminAccess::canComposeEmail())
                 ->label('Reply')

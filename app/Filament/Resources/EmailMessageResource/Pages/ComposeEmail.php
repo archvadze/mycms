@@ -4,6 +4,7 @@ namespace App\Filament\Resources\EmailMessageResource\Pages;
 use App\Filament\Resources\EmailMessageResource;
 use App\Models\EmailMessage;
 use App\Services\Mail\EmailSendingService;
+use App\Services\Mail\ForwardEmailPrefill;
 use App\Services\MailSettings;
 use App\Support\AdminAccess;
 use Filament\Forms\Components\FileUpload;
@@ -43,6 +44,22 @@ class ComposeEmail extends Page
                 'to' => $draft->recipients ?? [], 'cc' => $draft->cc_recipients ?? [], 'bcc' => $draft->bcc_recipients ?? [],
                 'subject' => $draft->subject, 'body' => $draft->html_body ?: e($draft->text_body),
                 'attachments' => collect($draft->attachments ?? [])->pluck('path')->all(),
+            ]);
+            return;
+        }
+        $forwardId = request()->query('forward');
+        if ($forwardId !== null) {
+            abort_unless(ctype_digit((string) $forwardId) && (int) $forwardId > 0, 404);
+            $original = EmailMessage::query()
+                ->whereIn('direction', ['inbound', 'outbound'])
+                ->findOrFail((int) $forwardId);
+            $prefill = ForwardEmailPrefill::fromMessage($original);
+            $this->form->fill([
+                'from' => app(MailSettings::class)->senderEmail(),
+                'to' => [], 'cc' => [], 'bcc' => [],
+                'subject' => $prefill['subject'],
+                'body' => $prefill['body'],
+                'attachments' => [],
             ]);
             return;
         }
