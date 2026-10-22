@@ -205,12 +205,14 @@ class EmailMessageResource extends Resource
         return $schema->schema([
             Section::make('Email Details')
                 ->schema([
-                    Forms\Components\TextInput::make('from_name')
-                        ->label('From name')
-                        ->disabled(),
-
                     Forms\Components\TextInput::make('from_email')
                         ->label('From')
+                        ->formatStateUsing(
+                            fn (EmailMessage $record): string =>
+                                filled($record->from_name)
+                                    ? $record->from_name . ' <' . $record->from_email . '>'
+                                    : (string) $record->from_email
+                        )
                         ->disabled(),
 
                     Forms\Components\TextInput::make('to_email')
@@ -381,6 +383,9 @@ class EmailMessageResource extends Resource
 
                                     return [
                                         'direction' => $message->direction,
+                                        'from' => $message->from_email,
+                                        'to' => $message->to_email,
+                                        'status' => $message->status,
                                         'body' => $message->text_body
                                             ?: strip_tags($message->html_body ?? ''),
                                         'timestamp' => $timestamp?->format('M j, Y H:i'),
@@ -397,6 +402,19 @@ class EmailMessageResource extends Resource
                                     $state === 'outbound' ? 'Sent' : 'Received'
                                 )
                                 ->inlineLabel(),
+
+                            TextEntry::make('from')
+                                ->label('From')
+                                ->inlineLabel(),
+
+                            TextEntry::make('to')
+                                ->label('To')
+                                ->inlineLabel(),
+
+                            TextEntry::make('status')
+                                ->label('Status')
+                                ->badge()
+                                ->placeholder('—'),
 
                             TextEntry::make('timestamp')
                                 ->label('Date')
@@ -421,8 +439,7 @@ class EmailMessageResource extends Resource
                         ->columnSpanFull(),
                 ])
                 ->columns(1)
-                ->columnSpanFull()
-                ->collapsed(),
+                ->columnSpanFull(),
         ]);
     }
 
