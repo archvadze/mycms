@@ -4,6 +4,9 @@ namespace App\Filament\Resources\EmailMessageResource\Pages;
 
 use App\Filament\Resources\EmailMessageResource;
 use App\Models\EmailMessage;
+use App\Services\Mail\MailboxIdentity;
+use App\Services\MailSettings;
+use Filament\Tables\Filters\SelectFilter;
 use App\Support\AdminAccess;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -79,8 +82,16 @@ trait HasOutboundMessagesTable
                         )?->format('Y-m-d H:i:s')
                     ),
             ])
-            ->filters($this->isDraftList() ? [] : [
-                \Filament\Tables\Filters\SelectFilter::make('status')
+            ->filters([
+                SelectFilter::make('mailbox')
+                    ->label('Mailbox')
+                    ->options(fn (): array => MailboxIdentity::composeOptions(app(MailSettings::class)))
+                    ->query(function (Builder $query, array $data): Builder {
+                        $mailbox = $data['value'] ?? null;
+                        return $mailbox ? $query->where('from_email', $mailbox) : $query;
+                    }),
+                ...($this->isDraftList() ? [] : [
+                    SelectFilter::make('status')
                     ->label('Delivery status')
                     ->options([
                         'sent' => 'Sent',
@@ -89,6 +100,7 @@ trait HasOutboundMessagesTable
                         'pending' => 'Pending',
                         'sending' => 'Sending',
                     ]),
+                ]),
             ])
             ->defaultSort('id', 'desc')
             ->recordUrl(fn (EmailMessage $record): string => $this->isDraftList()

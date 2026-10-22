@@ -21,6 +21,8 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use App\Support\AdminAccess;
+use App\Services\Mail\MailboxIdentity;
+use App\Services\MailSettings;
 
 
 
@@ -518,6 +520,13 @@ class EmailMessageResource extends Resource
                     ),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('mailbox')
+                    ->label('Mailbox')
+                    ->options(fn (): array => MailboxIdentity::composeOptions(app(MailSettings::class)))
+                    ->query(function (Builder $query, array $data): Builder {
+                        $mailbox = $data['value'] ?? null;
+                        return $mailbox ? $query->where('to_email', $mailbox) : $query;
+                    }),
                 Tables\Filters\SelectFilter::make('conversation_status')
                     ->label('Status')
                     ->options(function (): array {
