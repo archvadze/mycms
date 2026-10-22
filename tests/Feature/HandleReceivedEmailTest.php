@@ -447,4 +447,51 @@ class HandleReceivedEmailTest extends TestCase
         $this->assertSame('sender@example.com', $message->from_email);
         $this->assertSame('regular', $message->notificationType());
     }
+
+    public function test_multiple_inbound_recipients_are_preserved_without_duplicates(): void
+    {
+        $received = (object) [
+            'id' => 'multi-recipient-001',
+            'from' => 'Customer <customer@example.com>',
+            'to' => [
+                'admin@archvadze.com',
+                'support@archvadze.com',
+                'ADMIN@ARCHVADZE.COM',
+            ],
+            'created_at' => now()->toISOString(),
+            'subject' => 'Shared mailbox message',
+            'text' => 'Message for both mailboxes',
+            'html' => null,
+            'message_id' => '<multi-recipient-001@example.com>',
+            'headers' => [],
+            'reply_to' => null,
+            'attachments' => [],
+        ];
+
+        $listener = $this->listenerWithFakeReceivedEmail($received);
+
+        $event = new EmailReceived([
+            'type' => 'email.received',
+            'data' => [
+                'email_id' => 'multi-recipient-001',
+            ],
+        ]);
+
+        $listener->handle($event);
+        $listener->handle($event);
+
+        $this->assertDatabaseCount('email_messages', 1);
+        $this->assertDatabaseCount('email_threads', 1);
+
+        $message = EmailMessage::query()->sole();
+
+        $this->assertSame('admin@archvadze.com', $message->to_email);
+        $this->assertSame([
+            'admin@archvadze.com',
+            'support@archvadze.com',
+        ], $message->recipients);
+
+        $this->assertSame('inbound', $message->direction);
+        $this->assertNotNull($message->email_thread_id);
+    }
 }

@@ -95,4 +95,36 @@ class EmailMailboxFilterTest extends TestCase
             ->assertCanSeeTableRecords([$admin])
             ->assertCanNotSeeTableRecords([$support]);
     }
+
+    public function test_inbox_filter_includes_secondary_recipients(): void
+    {
+        $message = $this->message('inbound', 'admin@archvadze.com');
+
+        $message->update([
+            'recipients' => [
+                'admin@archvadze.com',
+                'support@archvadze.com',
+            ],
+        ]);
+
+        Livewire::test(ListEmailMessages::class)
+            ->filterTable('mailbox', 'support@archvadze.com')
+            ->assertCanSeeTableRecords([$message]);
+    }
+
+    public function test_inbox_filter_matches_earlier_message_in_same_thread(): void
+    {
+        $adminMessage = $this->message('inbound', 'admin@archvadze.com');
+        $supportMessage = $this->message('inbound', 'support@archvadze.com');
+        $unrelated = $this->message('inbound', 'support@archvadze.com');
+
+        $supportMessage->update([
+            'email_thread_id' => $adminMessage->email_thread_id,
+        ]);
+
+        Livewire::test(ListEmailMessages::class)
+            ->filterTable('mailbox', 'admin@archvadze.com')
+            ->assertCanSeeTableRecords([$supportMessage])
+            ->assertCanNotSeeTableRecords([$adminMessage, $unrelated]);
+    }
 }

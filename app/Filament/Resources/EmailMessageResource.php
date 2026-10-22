@@ -525,7 +525,29 @@ class EmailMessageResource extends Resource
                     ->options(fn (): array => MailboxIdentity::composeOptions(app(MailSettings::class)))
                     ->query(function (Builder $query, array $data): Builder {
                         $mailbox = $data['value'] ?? null;
-                        return $mailbox ? $query->where('to_email', $mailbox) : $query;
+                        if (! $mailbox) {
+                            return $query;
+                        }
+
+                        $matchesMailbox = function (Builder $messages) use ($mailbox): void {
+                            $messages->where('direction', 'inbound')
+                                ->where(function (Builder $recipients) use ($mailbox): void {
+                                    $recipients
+                                        ->whereRaw('LOWER(to_email) = ?', [strtolower($mailbox)])
+                                        ->orWhereRaw(
+                                            'LOWER(CAST(recipients AS TEXT)) LIKE ?',
+                                            ['%"' . strtolower($mailbox) . '"%']
+                                        );
+                                });
+                        };
+
+                        return $query->where(function (Builder $messages) use ($matchesMailbox): void {
+                            $messages
+                                ->where(function (Builder $current) use ($matchesMailbox): void {
+                                    $matchesMailbox($current);
+                                })
+                                ->orWhereHas('thread.messages', $matchesMailbox);
+                        });
                     }),
                 Tables\Filters\SelectFilter::make('conversation_status')
                     ->label('Status')
