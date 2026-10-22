@@ -5,6 +5,7 @@ namespace App\Filament\Resources\EmailMessageResource\Pages;
 use App\Support\AdminAccess;
 use App\Filament\Resources\EmailMessageResource;
 use App\Models\EmailMessage;
+use App\Services\Mail\MailboxIdentity;
 use App\Services\MailSettings;
 use Filament\Actions;
 use Filament\Forms;
@@ -72,6 +73,19 @@ class ViewEmailMessage extends ViewRecord
                 ->label('Reply')
                 ->icon('heroicon-o-arrow-uturn-left')
                 ->form([
+                    Forms\Components\Select::make('from')
+                        ->label('From')
+                        ->options(fn (): array => MailboxIdentity::replyOptions(
+                            $this->getReplyTarget(),
+                            app(MailSettings::class)
+                        ))
+                        ->default(fn (): ?string => array_key_first(
+                            MailboxIdentity::replyOptions(
+                                $this->getReplyTarget(),
+                                app(MailSettings::class)
+                            )
+                        ))
+                        ->required(),
                     Forms\Components\TextInput::make('to')
                         ->label('To')
                         ->default(
@@ -97,7 +111,7 @@ class ViewEmailMessage extends ViewRecord
                 ->modalHeading('Reply to email')
                 ->modalSubmitActionLabel('Send')
                 ->action(function (array $data): void {
-                    $this->sendReply($data['body']);
+                    $this->sendReply($data['body'], $data['from'] ?? null);
                 }),
         ];
     }
@@ -113,10 +127,10 @@ class ViewEmailMessage extends ViewRecord
             ?? $this->record;
     }
 
-    private function sendReply(string $body): void
+    private function sendReply(string $body, ?string $from = null): void
     {
         try {
-            app(\App\Services\Mail\EmailSendingService::class)->sendReply($this->getReplyTarget(), $body);
+            app(\App\Services\Mail\EmailSendingService::class)->sendReply($this->getReplyTarget(), $body, $from);
 
             Notification::make()
                 ->title('Reply sent')

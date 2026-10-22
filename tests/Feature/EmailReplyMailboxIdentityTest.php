@@ -113,4 +113,106 @@ class EmailReplyMailboxIdentityTest extends TestCase
         $this->assertSame(1, $reply->send_attempts);
         $this->assertDatabaseCount('email_messages', 2);
     }
+
+    public function test_reply_accepts_selected_allowed_sender(): void
+    {
+        $this->mock(MailSettings::class, function ($mock): void {
+            $mock->shouldReceive('enabled')->andReturn(true);
+            $mock->shouldReceive('senderEmail')->andReturn('admin@archvadze.com');
+            $mock->shouldReceive('senderName')->andReturn('Archvadze');
+            $mock->shouldReceive('replyTo')->andReturn(null);
+        });
+
+        $thread = EmailThread::create([
+            'subject' => 'Multiple mailboxes',
+            'status' => 'open',
+            'last_message_at' => now(),
+        ]);
+
+        $incoming = EmailMessage::create([
+            'email_thread_id' => $thread->id,
+            'direction' => 'inbound',
+            'source' => 'resend',
+            'message_id' => '<choose-from@example.test>',
+            'from_email' => 'customer@example.test',
+            'to_email' => 'admin@archvadze.com',
+            'recipients' => [
+                'admin@archvadze.com',
+                'support@archvadze.com',
+            ],
+            'subject' => 'Multiple mailboxes',
+            'attachments' => [],
+            'metadata' => [],
+            'is_read' => false,
+            'received_at' => now(),
+        ]);
+
+        $emails = Mockery::mock();
+        $emails->shouldReceive('send')
+            ->once()
+            ->with(Mockery::on(fn (array $payload): bool =>
+                ($payload['from'] ?? null)
+                    === 'Archvadze Support <support@archvadze.com>'
+            ))
+            ->andReturn((object) ['id' => 'selected-from-test']);
+
+        $client = Mockery::mock(ResendClient::class);
+        $client->emails = $emails;
+        $this->app->instance(ResendClient::class, $client);
+
+        $reply = app(EmailSendingService::class)->sendReply(
+            $incoming,
+            'Reply from support',
+            'support@archvadze.com'
+        );
+
+        $this->assertSame('support@archvadze.com', $reply->from_email);
+        $this->assertSame('sent', $reply->status);
+        $this->assertDatabaseCount('email_messages', 2);
+    }
+
+    public function test_reply_rejects_unauthorized_sender_before_persistence(): void
+    {
+        $this->mock(MailSettings::class, function ($mock): void {
+            $mock->shouldReceive('enabled')->andReturn(true);
+            $mock->shouldReceive('senderEmail')->andReturn('admin@archvadze.com');
+            $mock->shouldReceive('senderName')->andReturn('Archvadze');
+        });
+
+        $thread = EmailThread::create([
+            'subject' => 'Sender validation',
+            'status' => 'open',
+            'last_message_at' => now(),
+        ]);
+
+        $incoming = EmailMessage::create([
+            'email_thread_id' => $thread->id,
+            'direction' => 'inbound',
+            'source' => 'resend',
+            'from_email' => 'customer@example.test',
+            'to_email' => 'admin@archvadze.com',
+            'subject' => 'Sender validation',
+            'attachments' => [],
+            'metadata' => [],
+            'is_read' => false,
+            'received_at' => now(),
+        ]);
+
+        try {
+            app(EmailSendingService::class)->sendReply(
+                $incoming,
+                'Unauthorized reply',
+                'noreply@archvadze.com'
+            );
+
+            $this->fail('Unauthorized sender was accepted.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString(
+                'not permitted',
+                $e->getMessage()
+            );
+        }
+
+        $this->assertDatabaseCount('email_messages', 1);
+    }
 }

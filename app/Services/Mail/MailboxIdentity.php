@@ -2,6 +2,7 @@
 
 namespace App\Services\Mail;
 
+use App\Models\EmailMessage;
 use App\Services\MailSettings;
 use RuntimeException;
 
@@ -13,6 +14,37 @@ final class MailboxIdentity
         $options = [$default => $default . ' (Primary)'];
         if (strtolower($default) === 'admin@archvadze.com') {
             $options['support@archvadze.com'] = 'support@archvadze.com (Support)';
+        }
+
+        return $options;
+    }
+
+
+    public static function replyOptions(EmailMessage $message, MailSettings $settings): array
+    {
+        $allowed = self::composeOptions($settings);
+        $recipients = array_merge(
+            [$message->to_email],
+            $message->recipients ?? []
+        );
+
+        $options = [];
+
+        foreach ($recipients as $recipient) {
+            if (! is_string($recipient)) {
+                continue;
+            }
+
+            foreach ($allowed as $address => $label) {
+                if (strcasecmp(trim($recipient), $address) === 0) {
+                    $options[$address] = $label;
+                }
+            }
+        }
+
+        if ($options === []) {
+            $primary = $settings->senderEmail();
+            $options[$primary] = $allowed[$primary];
         }
 
         return $options;

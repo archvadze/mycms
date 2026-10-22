@@ -97,7 +97,7 @@ class EmailSendingService
      * Send a reply in the original conversation, recording the attempt before contacting Resend.
      * A provider error means delivery is unknown; never retry automatically.
      */
-    public function sendReply(EmailMessage $replyTarget, string $body): EmailMessage
+    public function sendReply(EmailMessage $replyTarget, string $body, ?string $requestedFrom = null): EmailMessage
     {
         if (! $this->mailSettings->enabled()) {
             throw new RuntimeException('Email sending is disabled.');
@@ -117,33 +117,15 @@ class EmailSendingService
             ? $originalSubject
             : 'Re: ' . ($originalSubject ?: '(No subject)');
         $originalMessageId = trim((string) $replyTarget->message_id);
-        $allowed = MailboxIdentity::composeOptions($this->mailSettings);
+        $options = MailboxIdentity::replyOptions($replyTarget, $this->mailSettings);
 
-        $incomingRecipients = array_merge(
-            [$replyTarget->to_email],
-            $replyTarget->recipients ?? []
-        );
+        $selected = $requestedFrom ?? array_key_first($options);
 
-        $requestedSender = null;
-
-        foreach ($incomingRecipients as $incomingAddress) {
-            if (! is_string($incomingAddress)) {
-                continue;
-            }
-
-            foreach (array_keys($allowed) as $allowedAddress) {
-                if (strcasecmp(trim($incomingAddress), $allowedAddress) === 0) {
-                    $requestedSender = $allowedAddress;
-                    break 2;
-                }
-            }
+        if (! is_string($selected) || ! array_key_exists($selected, $options)) {
+            throw new RuntimeException('Sender address is not permitted for this reply.');
         }
 
-        $sender = MailboxIdentity::resolve(
-            $requestedSender,
-            $this->mailSettings
-        );
-
+        $sender = MailboxIdentity::resolve($selected, $this->mailSettings);
         $senderName = $sender['name'];
         $senderEmail = $sender['email'];
 
