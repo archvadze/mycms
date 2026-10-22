@@ -16,6 +16,10 @@ class ThrottleResendWebhookTest extends TestCase
 
     public function test_resend_webhook_is_rate_limited_after_sixty_requests(): void
     {
+        config()->set(
+            'resend.webhook.secret',
+            'whsec_' . base64_encode(random_bytes(32))
+        );
         for ($i = 1; $i <= 60; $i++) {
             $response = $this->post('/resend/webhook');
 
