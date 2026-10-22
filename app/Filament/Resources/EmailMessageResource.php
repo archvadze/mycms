@@ -534,13 +534,28 @@ class EmailMessageResource extends Resource
                                 ->where(function (Builder $recipients) use ($mailbox): void {
                                     $recipients
                                         ->whereRaw('LOWER(to_email) = ?', [strtolower($mailbox)])
-                                        ->orWhereRaw(
-                                            'LOWER(CAST(recipients AS TEXT)) LIKE ?',
-                                            ['%"' . strtolower($mailbox) . '"%']
-                                        )
-                                        ->orWhereRaw(
-                                            'LOWER(CAST(cc_recipients AS TEXT)) LIKE ?',
-                                            ['%"' . strtolower($mailbox) . '"%']
+                                        ->when(
+                                            in_array(
+                                                $recipients->getConnection()->getDriverName(),
+                                                ['mysql', 'mariadb'],
+                                                true
+                                            ),
+                                            function (Builder $query) use ($mailbox): void {
+                                                foreach (['recipients', 'cc_recipients'] as $column) {
+                                                    $query->orWhereRaw(
+                                                        "JSON_CONTAINS(CASE WHEN JSON_VALID({$column}) THEN LOWER({$column}) ELSE '[]' END, JSON_QUOTE(?)) = 1",
+                                                        [strtolower($mailbox)]
+                                                    );
+                                                }
+                                            },
+                                            function (Builder $query) use ($mailbox): void {
+                                                foreach (['recipients', 'cc_recipients'] as $column) {
+                                                    $query->orWhereRaw(
+                                                        "LOWER(CAST({$column} AS TEXT)) LIKE ?",
+                                                        ['%"' . strtolower($mailbox) . '"%']
+                                                    );
+                                                }
+                                            }
                                         );
                                 });
                         };

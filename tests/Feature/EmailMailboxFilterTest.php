@@ -163,4 +163,40 @@ class EmailMailboxFilterTest extends TestCase
             ->assertCanSeeTableRecords([$latest])
             ->assertCanNotSeeTableRecords([$earlier, $unrelated]);
     }
+
+    public function test_inbox_json_filter_is_case_insensitive(): void
+    {
+        $message = $this->message('inbound', 'admin@archvadze.com');
+
+        $message->update([
+            'recipients' => ['SUPPORT@ARCHVADZE.COM'],
+            'cc_recipients' => ['ADMIN@ARCHVADZE.COM'],
+        ]);
+
+        Livewire::test(ListEmailMessages::class)
+            ->filterTable('mailbox', 'support@archvadze.com')
+            ->assertCanSeeTableRecords([$message]);
+
+        Livewire::test(ListEmailMessages::class)
+            ->filterTable('mailbox', 'admin@archvadze.com')
+            ->assertCanSeeTableRecords([$message]);
+    }
+
+    public function test_inbox_json_filter_handles_null_recipient_arrays(): void
+    {
+        $message = $this->message('inbound', 'admin@archvadze.com');
+
+        $message->update([
+            'recipients' => null,
+            'cc_recipients' => null,
+        ]);
+
+        Livewire::test(ListEmailMessages::class)
+            ->filterTable('mailbox', 'admin@archvadze.com')
+            ->assertCanSeeTableRecords([$message]);
+
+        Livewire::test(ListEmailMessages::class)
+            ->filterTable('mailbox', 'support@archvadze.com')
+            ->assertCanNotSeeTableRecords([$message]);
+    }
 }
