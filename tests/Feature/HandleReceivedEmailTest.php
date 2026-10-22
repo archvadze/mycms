@@ -44,9 +44,40 @@ class HandleReceivedEmailTest extends TestCase
 
             protected function retrieveReceivedEmail(string $emailId): object
             {
+                if ($this->fakeReceived instanceof \Throwable) {
+                    throw $this->fakeReceived;
+                }
+
                 return $this->fakeReceived;
             }
         };
+    }
+
+    public function test_retrieval_failure_is_propagated_for_webhook_retry(): void
+    {
+        $listener = $this->listenerWithFakeReceivedEmail(
+            new \RuntimeException('Simulated Resend API failure')
+        );
+
+        $event = new EmailReceived([
+            'type' => 'email.received',
+            'data' => [
+                'email_id' => 'temporary-failure-test',
+            ],
+        ]);
+
+        try {
+            $listener->handle($event);
+            $this->fail('Retrieval failure was swallowed.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame(
+                'Simulated Resend API failure',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseCount('email_threads', 0);
+        $this->assertDatabaseCount('email_messages', 0);
     }
 
     public function test_received_email_creates_thread_and_message(): void

@@ -41,7 +41,7 @@ class HandleReceivedEmail
                 'error' => $e->getMessage(),
             ]);
 
-            return;
+            throw $e;
         }
 
         $messageId = $received->message_id ?? $data['message_id'] ?? $emailId;
