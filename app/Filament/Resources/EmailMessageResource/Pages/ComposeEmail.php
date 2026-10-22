@@ -9,6 +9,8 @@ use App\Services\MailSettings;
 use App\Support\AdminAccess;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\RichEditor;
+use Filament\Forms\Components\Select;
+use App\Services\Mail\MailboxIdentity;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -40,7 +42,7 @@ class ComposeEmail extends Page
             $draft = EmailMessage::query()->where('direction', 'outbound')->where('status', 'draft')->findOrFail((int)$id);
             $this->draftId = $draft->id;
             $this->form->fill([
-                'from' => app(MailSettings::class)->senderEmail(),
+                'from' => $draft->from_email ?: app(MailSettings::class)->senderEmail(),
                 'to' => $draft->recipients ?? [], 'cc' => $draft->cc_recipients ?? [], 'bcc' => $draft->bcc_recipients ?? [],
                 'subject' => $draft->subject, 'body' => $draft->html_body ?: e($draft->text_body),
                 'attachments' => collect($draft->attachments ?? [])->pluck('path')->all(),
@@ -70,7 +72,7 @@ class ComposeEmail extends Page
     {
         return $schema->components([
             Section::make('New message')->schema([
-                TextInput::make('from')->disabled()->dehydrated(false),
+                Select::make('from')->label('From')->options(fn (): array => MailboxIdentity::composeOptions(app(MailSettings::class)))->required(),
                 TagsInput::make('to')->label('To')->placeholder('Enter address and press Enter')->required(),
                 TagsInput::make('cc')->label('CC'),
                 TagsInput::make('bcc')->label('BCC'),
@@ -104,6 +106,7 @@ class ComposeEmail extends Page
             (array) ($state['to'] ?? []), (array) ($state['cc'] ?? []), (array) ($state['bcc'] ?? []),
             (string) ($state['subject'] ?? ''), (string) ($state['body'] ?? ''), $files,
             $this->draftId ? EmailMessage::query()->where('status', 'draft')->where('direction', 'outbound')->findOrFail($this->draftId) : null,
+            (string) ($state['from'] ?? ''),
         ];
     }
 

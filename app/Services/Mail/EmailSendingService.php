@@ -23,8 +23,9 @@ class EmailSendingService
         return $this->sendMessage([$to], [], [], $subject, $body);
     }
 
-    public function saveDraft(array $to, array $cc, array $bcc, string $subject, string $html, array $files = [], ?EmailMessage $draft = null): EmailMessage
+    public function saveDraft(array $to, array $cc, array $bcc, string $subject, string $html, array $files = [], ?EmailMessage $draft = null, ?string $from = null): EmailMessage
     {
+        $identity = MailboxIdentity::resolve($from, $this->mailSettings);
         $to = $this->addresses($to, false);
         $cc = $this->addresses($cc, false);
         $bcc = $this->addresses($bcc, false);
@@ -34,7 +35,7 @@ class EmailSendingService
         }
         $attributes = [
             'direction' => 'outbound', 'status' => 'draft', 'source' => config('mail.default'),
-            'from_name' => $this->mailSettings->senderName(), 'from_email' => $this->mailSettings->senderEmail(),
+            'from_name' => $identity['name'], 'from_email' => $identity['email'],
             'to_email' => $to[0] ?? '', 'recipients' => $to, 'cc_recipients' => $cc, 'bcc_recipients' => $bcc,
             'subject' => trim($subject), 'html_body' => $html,
             'text_body' => trim(html_entity_decode(strip_tags(str_replace(['</p>', '<br>', '<br />'], "\n", $html)))),
@@ -47,9 +48,10 @@ class EmailSendingService
         });
     }
 
-    public function sendMessage(array $to, array $cc, array $bcc, string $subject, string $html, array $files = [], ?EmailMessage $draft = null): EmailMessage
+    public function sendMessage(array $to, array $cc, array $bcc, string $subject, string $html, array $files = [], ?EmailMessage $draft = null, ?string $from = null): EmailMessage
     {
         if (! $this->mailSettings->enabled()) { throw new RuntimeException('Email sending is disabled.'); }
+        $identity = MailboxIdentity::resolve($from, $this->mailSettings);
         $to = $this->addresses($to, true);
         $cc = $this->addresses($cc, false);
         $bcc = $this->addresses($bcc, false);
@@ -62,7 +64,7 @@ class EmailSendingService
         if ($draft && ($draft->direction !== 'outbound' || $draft->status !== 'draft')) { throw new RuntimeException('Draft has already been sent.'); }
         $attrs = [
             'direction' => 'outbound', 'source' => config('mail.default'), 'status' => 'pending',
-            'from_name' => $this->mailSettings->senderName(), 'from_email' => $this->mailSettings->senderEmail(),
+            'from_name' => $identity['name'], 'from_email' => $identity['email'],
             'to_email' => $to[0], 'recipients' => $to, 'cc_recipients' => $cc, 'bcc_recipients' => $bcc,
             'subject' => $subject, 'text_body' => $text, 'html_body' => $html, 'attachments' => $files,
             'is_read' => true, 'send_attempts' => 0, 'sending_token' => (string) Str::uuid(),
@@ -75,7 +77,7 @@ class EmailSendingService
         $message->update(['status' => 'sending', 'sending_started_at' => now(), 'send_attempts' => 1]);
         try {
             $mail = (new OutgoingEmail($subject, $text, $html, $files))
-                ->from($this->mailSettings->senderEmail(), $this->mailSettings->senderName())
+                ->from($identity['email'], $identity['name'])
                 ->to($to);
             if ($cc) { $mail->cc($cc); }
             if ($bcc) { $mail->bcc($bcc); }
