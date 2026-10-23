@@ -98,7 +98,7 @@
                 <span class="px-2 bg-white text-gray-500">Or continue with</span>
             </div>
         </div>
-        <div class="mt-4 grid grid-cols-3 gap-3">
+        <div class="mt-4 grid grid-cols-1 max-w-xs mx-auto gap-3">
             <a href="{{ route('social.redirect', 'google') }}"
                class="flex justify-center items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
                 <svg class="w-4 h-4" viewBox="0 0 24 24">
@@ -108,20 +108,6 @@
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
                 Google
-            </a>
-            <a href="{{ route('social.redirect', 'facebook') }}"
-               class="flex justify-center items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
-                <svg class="w-4 h-4" fill="#1877F2" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-                Facebook
-            </a>
-            <a href="{{ route('social.redirect', 'twitter') }}"
-               class="flex justify-center items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.736-8.847L1.254 2.25H8.08l4.253 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                </svg>
-                X
             </a>
         </div>
     </div>
