@@ -4,8 +4,9 @@ namespace App\Listeners;
 
 use App\Models\EmailMessage;
 use App\Models\EmailThread;
-use App\Services\MailSettings;
 use App\Services\Mail\AttachmentPolicy;
+use App\Services\MailSettings;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Resend\Contracts\Client as ResendClient;
@@ -97,66 +98,82 @@ class HandleReceivedEmail
 
         $thread = $this->resolveThreadFromHeaders($headers);
 
-        DB::transaction(function () use (
-            $payload,
-            $received,
-            $emailId,
-            $messageId,
-            $fromName,
-            $fromEmail,
-            $toEmail,
-            $toRecipients,
-            $ccRecipients,
-            $subject,
-            $attachments,
-            $thread,
-            $headers,
-            $notificationType
-        ) {
-            if (! $thread) {
-                $thread = EmailThread::create([
+        try {
+            DB::transaction(function () use (
+                $received,
+                $emailId,
+                $messageId,
+                $fromName,
+                $fromEmail,
+                $toEmail,
+                $toRecipients,
+                $ccRecipients,
+                $subject,
+                $attachments,
+                $thread,
+                $headers,
+                $notificationType
+            ) {
+                if (! $thread) {
+                    $thread = EmailThread::create([
+                        'subject' => $subject,
+                        'status' => 'open',
+                        'last_message_at' => $received->created_at ?? now(),
+                    ]);
+                } else {
+                    $thread->update([
+                        'status' => 'open',
+                        'last_message_at' => $received->created_at ?? now(),
+                    ]);
+                }
+
+                EmailMessage::create([
+                    'email_thread_id' => $thread->id,
+                    'direction' => 'inbound',
+                    'source' => 'resend',
+                    'message_id' => $messageId,
+                    'from_name' => $fromName,
+                    'from_email' => $fromEmail ?: 'unknown@example.invalid',
+                    'to_email' => $toEmail ?: $this->mailSettings->inboxEmail(),
+                    'recipients' => $toRecipients ?: [$this->mailSettings->inboxEmail()],
+                    'cc_recipients' => $ccRecipients,
                     'subject' => $subject,
-                    'status' => 'open',
-                    'last_message_at' => $received->created_at ?? now(),
+                    'text_body' => $received->text ?? null,
+                    'html_body' => $received->html ?? null,
+                    'attachments' => $this->evaluateAttachments($attachments),
+                    'metadata' => [
+                        'resend_email_id' => $emailId,
+                        'in_reply_to' => $this->headerValue($headers, [
+                            'in-reply-to',
+                            'In-Reply-To',
+                        ]),
+                        'references' => $this->headerValue($headers, [
+                            'references',
+                            'References',
+                        ]),
+                        'reply_to' => $received->reply_to ?? null,
+                        'notification_type' => $notificationType,
+                    ],
+                    'is_read' => false,
+                    'received_at' => $received->created_at ?? now(),
                 ]);
-            } else {
-                $thread->update([
-                    'status' => 'open',
-                    'last_message_at' => $received->created_at ?? now(),
-                ]);
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            $databaseError = $e->getPrevious()?->getMessage() ?? '';
+
+            $isMessageIdConflict =
+                str_contains($databaseError, 'email_messages_message_id_unique')
+                || str_contains($databaseError, 'UNIQUE constraint failed: email_messages.message_id');
+
+            if (
+                $isMessageIdConflict
+                && EmailMessage::where('message_id', $messageId)->exists()
+            ) {
+                return;
             }
 
-            EmailMessage::create([
-                'email_thread_id' => $thread->id,
-                'direction' => 'inbound',
-                'source' => 'resend',
-                'message_id' => $messageId,
-                'from_name' => $fromName,
-                'from_email' => $fromEmail ?: 'unknown@example.invalid',
-                'to_email' => $toEmail ?: $this->mailSettings->inboxEmail(),
-                'recipients' => $toRecipients ?: [$this->mailSettings->inboxEmail()],
-                'cc_recipients' => $ccRecipients,
-                'subject' => $subject,
-                'text_body' => $received->text ?? null,
-                'html_body' => $received->html ?? null,
-                'attachments' => $this->evaluateAttachments($attachments),
-                'metadata' => [
-                    'resend_email_id' => $emailId,
-                    'in_reply_to' => $this->headerValue($headers, [
-                        'in-reply-to',
-                        'In-Reply-To',
-                    ]),
-                    'references' => $this->headerValue($headers, [
-                        'references',
-                        'References',
-                    ]),
-                    'reply_to' => $received->reply_to ?? null,
-                    'notification_type' => $notificationType,
-                ],
-                'is_read' => false,
-                'received_at' => $received->created_at ?? now(),
-            ]);
-        });
+            throw $e;
+        }
     }
 
     private function notificationActorName(array $headers): ?string
@@ -281,7 +298,7 @@ class HandleReceivedEmail
             $normalized = trim($messageId, '<>');
 
             $messageIdVariants[] = $normalized;
-            $messageIdVariants[] = '<' . $normalized . '>';
+            $messageIdVariants[] = '<'.$normalized.'>';
         }
 
         $messageIdVariants = array_values(array_unique($messageIdVariants));

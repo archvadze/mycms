@@ -7,7 +7,10 @@ use App\Models\EmailMessage;
 use App\Models\EmailThread;
 use App\Services\Mail\AttachmentPolicy;
 use App\Services\MailSettings;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Resend\Contracts\Client as ResendClient;
 use Resend\Laravel\Events\EmailReceived;
 use Tests\TestCase;
@@ -22,12 +25,7 @@ class HandleReceivedEmailTest extends TestCase
         $mailSettings = app(MailSettings::class);
         $attachmentPolicy = app(AttachmentPolicy::class);
 
-        return new class(
-            $client,
-            $mailSettings,
-            $attachmentPolicy,
-            $received
-        ) extends HandleReceivedEmail
+        return new class($client, $mailSettings, $attachmentPolicy, $received) extends HandleReceivedEmail
         {
             public function __construct(
                 ResendClient $resend,
@@ -183,6 +181,244 @@ class HandleReceivedEmailTest extends TestCase
 
         $this->assertDatabaseCount('email_threads', 1);
         $this->assertDatabaseCount('email_messages', 1);
+    }
+
+    public function test_duplicate_insert_race_preserves_existing_message(): void
+    {
+        $messageId = '<race-duplicate@example.com>';
+
+        $received = (object) [
+            'id' => 'race-duplicate',
+            'from' => 'Sender <sender@example.com>',
+            'to' => ['admin@archvadze.com'],
+            'created_at' => now()->toISOString(),
+            'subject' => 'Concurrent duplicate',
+            'html' => null,
+            'text' => 'Race test',
+            'message_id' => $messageId,
+            'headers' => [],
+            'reply_to' => null,
+            'cc' => null,
+            'bcc' => null,
+            'attachments' => [],
+        ];
+
+        $inserted = false;
+
+        DB::listen(function (QueryExecuted $query) use (&$inserted, $messageId): void {
+            if (
+                $inserted
+                || ! str_contains(strtolower($query->sql), 'select exists')
+                || ! str_contains($query->sql, 'email_messages')
+            ) {
+                return;
+            }
+
+            $inserted = true;
+
+            $thread = EmailThread::create([
+                'subject' => 'Existing concurrent message',
+                'status' => 'open',
+                'last_message_at' => now(),
+            ]);
+
+            EmailMessage::create([
+                'email_thread_id' => $thread->id,
+                'direction' => 'inbound',
+                'source' => 'resend',
+                'message_id' => $messageId,
+                'from_email' => 'sender@example.com',
+                'to_email' => 'admin@archvadze.com',
+                'subject' => 'Existing concurrent message',
+                'is_read' => false,
+            ]);
+        });
+
+        $listener = $this->listenerWithFakeReceivedEmail($received);
+
+        $listener->handle(new EmailReceived([
+            'type' => 'email.received',
+            'data' => ['email_id' => 'race-duplicate'],
+        ]));
+
+        $this->assertTrue($inserted);
+        $this->assertDatabaseCount('email_threads', 1);
+        $this->assertDatabaseCount('email_messages', 1);
+
+        $this->assertSame(
+            1,
+            EmailMessage::where('message_id', $messageId)->count()
+        );
+
+        $this->assertSame(
+            'Existing concurrent message',
+            EmailMessage::where('message_id', $messageId)->firstOrFail()->subject
+        );
+    }
+
+    public function test_other_unique_constraint_violation_is_not_swallowed(): void
+    {
+        $messageId = '<other-unique-race@example.com>';
+        $token = 'other-unique-race-token';
+
+        $received = (object) [
+            'id' => 'other-unique-race',
+            'from' => 'Sender <sender@example.com>',
+            'to' => ['admin@archvadze.com'],
+            'created_at' => now()->toISOString(),
+            'subject' => 'Other unique constraint',
+            'html' => null,
+            'text' => 'Test body',
+            'message_id' => $messageId,
+            'headers' => [],
+            'reply_to' => null,
+            'cc' => null,
+            'bcc' => null,
+            'attachments' => [],
+        ];
+
+        $inserted = false;
+
+        $originalDispatcher = EmailMessage::getEventDispatcher();
+        $this->assertNotNull($originalDispatcher);
+        EmailMessage::setEventDispatcher(clone $originalDispatcher);
+
+        try {
+            DB::listen(function (QueryExecuted $query) use (
+                &$inserted,
+                $messageId,
+                $token
+            ): void {
+                if (
+                    $inserted
+                    || ! str_contains(strtolower($query->sql), 'select exists')
+                    || ! str_contains($query->sql, 'email_messages')
+                ) {
+                    return;
+                }
+
+                $inserted = true;
+
+                $thread = EmailThread::create([
+                    'subject' => 'Already stored',
+                    'status' => 'open',
+                    'last_message_at' => now(),
+                ]);
+
+                EmailMessage::create([
+                    'email_thread_id' => $thread->id,
+                    'direction' => 'inbound',
+                    'source' => 'resend',
+                    'message_id' => $messageId,
+                    'sending_token' => $token,
+                    'from_email' => 'sender@example.com',
+                    'to_email' => 'admin@archvadze.com',
+                    'subject' => 'Already stored',
+                    'is_read' => false,
+                ]);
+
+                EmailMessage::creating(
+                    static function (EmailMessage $message) use ($messageId, $token): void {
+                        if ($message->message_id === $messageId) {
+                            $message->sending_token = $token;
+                        }
+                    }
+                );
+            });
+
+            $listener = $this->listenerWithFakeReceivedEmail($received);
+
+            try {
+                $listener->handle(new EmailReceived([
+                    'type' => 'email.received',
+                    'data' => ['email_id' => 'other-unique-race'],
+                ]));
+
+                $this->fail('An unrelated unique constraint violation was swallowed.');
+            } catch (UniqueConstraintViolationException $e) {
+                $this->assertStringContainsString(
+                    'sending_token',
+                    $e->getPrevious()?->getMessage() ?? ''
+                );
+            }
+
+            $this->assertTrue($inserted);
+            $this->assertDatabaseCount('email_messages', 1);
+            $this->assertDatabaseCount('email_threads', 1);
+        } finally {
+            EmailMessage::setEventDispatcher($originalDispatcher);
+        }
+    }
+
+    public function test_message_id_conflict_without_existing_record_is_rethrown(): void
+    {
+        $messageId = '<missing-conflict@example.com>';
+
+        $received = (object) [
+            'id' => 'missing-conflict',
+            'from' => 'Sender <sender@example.com>',
+            'to' => ['admin@archvadze.com'],
+            'created_at' => now()->toISOString(),
+            'subject' => 'Missing conflict',
+            'html' => null,
+            'text' => 'Test body',
+            'message_id' => $messageId,
+            'headers' => [],
+            'reply_to' => null,
+            'cc' => null,
+            'bcc' => null,
+            'attachments' => [],
+        ];
+
+        $originalDispatcher = EmailMessage::getEventDispatcher();
+        $this->assertNotNull($originalDispatcher);
+
+        EmailMessage::setEventDispatcher(clone $originalDispatcher);
+
+        $caught = null;
+
+        try {
+            EmailMessage::creating(
+                static function (EmailMessage $message) use ($messageId): void {
+                    if ($message->message_id !== $messageId) {
+                        return;
+                    }
+
+                    $previous = new \PDOException(
+                        'UNIQUE constraint failed: email_messages.message_id',
+                        19
+                    );
+
+                    throw new UniqueConstraintViolationException(
+                        'sqlite',
+                        'insert into email_messages',
+                        [],
+                        $previous
+                    );
+                }
+            );
+
+            $listener = $this->listenerWithFakeReceivedEmail($received);
+
+            try {
+                $listener->handle(new EmailReceived([
+                    'type' => 'email.received',
+                    'data' => ['email_id' => 'missing-conflict'],
+                ]));
+            } catch (UniqueConstraintViolationException $e) {
+                $caught = $e;
+            }
+        } finally {
+            EmailMessage::setEventDispatcher($originalDispatcher);
+        }
+
+        $this->assertInstanceOf(
+            UniqueConstraintViolationException::class,
+            $caught
+        );
+
+        $this->assertDatabaseCount('email_messages', 0);
+        $this->assertDatabaseCount('email_threads', 0);
     }
 
     public function test_received_reply_reuses_existing_thread_from_references(): void
@@ -412,7 +648,6 @@ class HandleReceivedEmailTest extends TestCase
             'is_read' => false,
         ]);
     }
-
 
     public function test_contact_notification_stores_actor_name_and_type(): void
     {
