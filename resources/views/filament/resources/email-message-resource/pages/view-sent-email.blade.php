@@ -1,10 +1,10 @@
 <x-filament-panels::page>
     {{-- Scoped styles: do not depend on the application's separate Tailwind build. --}}
     <style>
-        .mycms-sent-detail { display: grid; gap: 1.25rem; max-width: 1100px; margin-inline: auto; width: 100%; color: var(--fi-color, inherit); }
+        .mycms-sent-detail { display: grid; gap: 1.25rem; max-width: 1200px; margin-inline: auto; width: 100%; color: var(--fi-color, inherit); }
         .mycms-sent-card { border: 1px solid rgba(125,125,125,.24); border-radius: 14px; overflow: hidden; background: rgba(128,128,128,.035); }
         .mycms-sent-card__head { padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(125,125,125,.18); }
-        .mycms-sent-card__body { padding: 1.5rem; }
+        .mycms-sent-card__body { padding: clamp(1.1rem, 2.5vw, 2rem); }
         .mycms-sent-subject { font-size: clamp(1.2rem, 2vw, 1.55rem); font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; margin: 0 0 .6rem; }
         .mycms-sent-muted { opacity: .7; font-size: .875rem; }
         .mycms-sent-heading { font-weight: 650; font-size: 1rem; margin: 0; }
@@ -14,7 +14,7 @@
         .mycms-sent-status { display: inline-block; border-radius: 999px; padding: .25rem .7rem; background: rgba(125,125,125,.15); font-size: .8rem; font-weight: 650; }
         .mycms-sent-status--sent { background: rgba(22,163,74,.13); color: #16803b; }
         .mycms-sent-status--unknown, .mycms-sent-status--failed { background: rgba(220,38,38,.12); color: #c02626; }
-        .mycms-sent-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; font-size: .96rem; min-height: 4.5rem; }
+        .mycms-sent-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; font-size: 1rem; min-height: 4.5rem; }
         .mycms-sent-attachment { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem 0; border-bottom: 1px solid rgba(125,125,125,.18); }
         .mycms-sent-attachment:last-child { border-bottom: 0; }
         .mycms-sent-link { color: #2563eb; font-weight: 650; text-decoration: underline; }
@@ -31,9 +31,6 @@
         $cc = $message->cc_recipients ?? [];
         $bcc = $message->bcc_recipients ?? [];
         $activity = $message->sent_at ?? $message->updated_at;
-        $body = filled($message->text_body)
-            ? $message->text_body
-            : strip_tags($message->html_body ?? '');
         $attachments = $this->attachmentItems();
     @endphp
 
@@ -76,8 +73,11 @@
         <section class="mycms-sent-card" aria-label="Message content">
             <div class="mycms-sent-card__head"><h3 class="mycms-sent-heading">Message</h3></div>
             <div class="mycms-sent-card__body">
-                {{-- Blade escapes untrusted mail text; do NOT render with {!! !!}. --}}
-                <div class="mycms-sent-body">{{ filled($body) ? $body : '(Empty message)' }}</div>
+                @include('filament.partials.email-body-preview', [
+                    'htmlBody' => $message->html_body,
+                    'textBody' => $message->text_body,
+                    'threadMode' => false,
+                ])
             </div>
         </section>
 

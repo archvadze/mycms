@@ -2,6 +2,7 @@
 namespace App\Services\Mail;
 
 use App\Mail\OutgoingEmail;
+use Filament\Forms\Components\RichEditor\RichContentRenderer;
 use App\Models\EmailMessage;
 use App\Models\EmailThread;
 use App\Services\MailSettings;
@@ -97,15 +98,31 @@ class EmailSendingService
      * Send a reply in the original conversation, recording the attempt before contacting Resend.
      * A provider error means delivery is unknown; never retry automatically.
      */
-    public function sendReply(EmailMessage $replyTarget, string $body, ?string $requestedFrom = null): EmailMessage
+    public function sendReply(EmailMessage $replyTarget, string $body, ?string $requestedFrom = null, bool $richText = false): EmailMessage
     {
         if (! $this->mailSettings->enabled()) {
             throw new RuntimeException('Email sending is disabled.');
         }
 
         $body = trim($body);
+
+        // Preserve plain-text API callers; the Reply modal opts in to HTML.
+        // Sanitize BEFORE persisting or transmitting editor content.
+        $safeHtml = null;
+        if ($richText && $body !== '') {
+            $hasRichTags = preg_match(
+                '/<\s*(?:p|div|h[1-6]|strong|em|b|i|a|ul|ol|li|br|blockquote)\b/i',
+                $body
+            ) === 1;
+            $editorHtml = $hasRichTags ? $body : '<p>'.e($body).'</p>';
+            $safeHtml = RichContentRenderer::make($editorHtml)->toHtml();
+        }
+        $textBody = $safeHtml !== null
+            ? $this->richReplyPlainText($safeHtml)
+            : $body;
+
         $recipient = trim($replyTarget->replyRecipient());
-        if ($body === '' || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+        if ($textBody === '' || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
             throw new RuntimeException('A valid recipient and non-empty reply are required.');
         }
         if ($replyTarget->direction !== 'inbound' || ! $replyTarget->email_thread_id) {
@@ -129,7 +146,7 @@ class EmailSendingService
         $senderName = $sender['name'];
         $senderEmail = $sender['email'];
 
-        $message = DB::transaction(function () use ($replyTarget, $recipient, $subject, $body, $senderName, $senderEmail): EmailMessage {
+        $message = DB::transaction(function () use ($replyTarget, $recipient, $subject, $textBody, $safeHtml, $senderName, $senderEmail): EmailMessage {
             return EmailMessage::create([
                 'email_thread_id' => $replyTarget->email_thread_id,
                 'direction' => 'outbound',
@@ -142,8 +159,8 @@ class EmailSendingService
                 'from_email' => $senderEmail,
                 'to_email' => $recipient,
                 'subject' => $subject,
-                'text_body' => $body,
-                'html_body' => null,
+                'text_body' => $textBody,
+                'html_body' => $safeHtml,
                 'in_reply_to' => $replyTarget->message_id,
                 'attachments' => [],
                 'metadata' => [],
@@ -166,8 +183,15 @@ class EmailSendingService
                 'from' => "{$senderName} <{$senderEmail}>",
                 'to' => [$recipient],
                 'subject' => $subject,
-                'text' => $body,
+                'text' => $textBody,
             ];
+            if ($safeHtml !== null) {
+                // Reuse the same HTML mail wrapper used by Compose.
+                $payload['html'] = view('emails.outgoing-html', [
+                    'body' => $textBody,
+                    'html' => $safeHtml,
+                ])->render();
+            }
             if ($originalMessageId !== '') {
                 $payload['headers'] = [
                     'In-Reply-To' => $originalMessageId,
@@ -211,6 +235,21 @@ class EmailSendingService
         }
 
         return $message->refresh();
+    }
+
+    private function richReplyPlainText(string $html): string
+    {
+        $withBreaks = preg_replace(
+            '/<\s*br\b[^>]*>|<\/\s*(?:p|div|h[1-6]|li|blockquote)\s*>/i',
+            "\n",
+            $html
+        ) ?? $html;
+
+        return trim(html_entity_decode(
+            strip_tags($withBreaks),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        ));
     }
 
     private function addresses(array $values, bool $required): array

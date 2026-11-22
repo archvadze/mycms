@@ -102,13 +102,13 @@ class ViewEmailMessage extends ViewRecord
                         )
                         ->disabled(),
 
-                    Forms\Components\Textarea::make('body')
+                    Forms\Components\RichEditor::make('body')
                         ->label('Message')
                         ->required()
-                        ->rows(12)
                         ->columnSpanFull(),
                 ])
                 ->modalHeading('Reply to email')
+                ->modalWidth(\Filament\Support\Enums\Width::FiveExtraLarge)
                 ->modalSubmitActionLabel('Send')
                 ->action(function (array $data): void {
                     $this->sendReply($data['body'], $data['from'] ?? null);
@@ -130,7 +130,9 @@ class ViewEmailMessage extends ViewRecord
     private function sendReply(string $body, ?string $from = null): void
     {
         try {
-            app(\App\Services\Mail\EmailSendingService::class)->sendReply($this->getReplyTarget(), $body, $from);
+            app(\App\Services\Mail\EmailSendingService::class)->sendReply(
+                $this->getReplyTarget(), $body, $from, true
+            );
 
             Notification::make()
                 ->title('Reply sent')

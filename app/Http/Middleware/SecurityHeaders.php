@@ -26,7 +26,7 @@ class SecurityHeaders
     "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; " .
     "worker-src 'self' blob:; " .
     "img-src 'self' data: blob: https:; " .
-    "frame-src https://www.paypal.com https://www.sandbox.paypal.com https://www.google.com https://challenges.cloudflare.com; " .
+    "frame-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://www.google.com https://challenges.cloudflare.com; " .
     "connect-src 'self' https://challenges.cloudflare.com;"
 );
 

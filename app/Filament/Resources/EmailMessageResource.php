@@ -9,6 +9,8 @@ use App\Services\Mail\AttachmentPolicy;
 use Filament\Actions;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
+use Filament\Schemas\Components\View;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -207,62 +209,19 @@ class EmailMessageResource extends Resource
         return $schema->schema([
             Section::make('Email Details')
                 ->schema([
-                    Forms\Components\TextInput::make('from_email')
-                        ->label('From')
-                        ->formatStateUsing(
-                            fn (EmailMessage $record): string =>
-                                filled($record->from_name)
-                                    ? $record->from_name . ' <' . $record->from_email . '>'
-                                    : (string) $record->from_email
-                        )
-                        ->disabled(),
-
-                    Forms\Components\TextInput::make('to_email')
-                        ->label('To')
-                        ->disabled(),
-
-                    Forms\Components\TextInput::make('reply_recipient')
-                        ->label('Reply to')
-                        ->formatStateUsing(
-                            fn (EmailMessage $record): string =>
-                                $record->replyRecipient()
-                        )
-                        ->disabled(),
-
-                    Forms\Components\TextInput::make('received_at')
-                        ->label('Received')
-                        ->disabled()
-                        ->formatStateUsing(
-                            fn($state) => $state
-                                ? \Illuminate\Support\Carbon::parse($state)
-                                ->format('M j, Y H:i')
-                                : null
-                        ),
-
-                    Forms\Components\TextInput::make('notification_type')
-                        ->label('Type')
-                        ->formatStateUsing(
-                            fn (EmailMessage $record): string =>
-                                $record->displayNotificationType()
-                        )
-                        ->disabled(),
-
-                    Forms\Components\TextInput::make('subject')
-                        ->label('Subject')
-                        ->disabled()
+                    View::make('filament.schemas.email-message-summary')
                         ->columnSpanFull(),
                 ])
-                ->columns(2),
+                ->columns(1)
+                ->columnSpanFull(),
 
             Section::make('Message')
                 ->schema([
-                    Forms\Components\Textarea::make('text_body')
-                        ->label('')
-                        ->rows(18)
-                        ->disabled()
+                    View::make('filament.schemas.email-message-preview')
                         ->columnSpanFull(),
                 ])
-                ->columns(1),
+                ->columns(1)
+                ->columnSpanFull(),
 
 
             Section::make('Attachments')
@@ -363,7 +322,8 @@ class EmailMessageResource extends Resource
                     count($record->attachments ?? []) > 0
                 ),
 
-            Section::make('Conversation (Full email thread in chronological order)')
+            Section::make('Conversation')
+                ->description('Messages in chronological order')
                 ->schema([
                     RepeatableEntry::make('conversation')
                         ->label('')
@@ -388,8 +348,10 @@ class EmailMessageResource extends Resource
                                         'from' => $message->from_email,
                                         'to' => $message->to_email,
                                         'status' => $message->status,
-                                        'body' => $message->text_body
-                                            ?: strip_tags($message->html_body ?? ''),
+                                        'body' => [
+                                            'text' => $message->text_body,
+                                            'html' => $message->html_body,
+                                        ],
                                         'timestamp' => $timestamp?->format('M j, Y H:i'),
                                         'attachment_count' => count($message->attachments ?? []),
                                     ];
@@ -422,8 +384,9 @@ class EmailMessageResource extends Resource
                                 ->label('Date')
                                 ->inlineLabel(),
 
-                            TextEntry::make('body')
+                            ViewEntry::make('body')
                                 ->label('Message')
+                                ->view('filament.infolists.components.email-body-preview')
                                 ->columnSpanFull(),
 
                             TextEntry::make('attachment_count')
